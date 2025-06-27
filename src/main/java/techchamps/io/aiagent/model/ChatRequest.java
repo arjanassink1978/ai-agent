@@ -1,5 +1,8 @@
 package techchamps.io.aiagent.model;
 
+import java.util.Map;
+import java.util.HashMap;
+
 public class ChatRequest {
     private String message;
     private String sessionId;
@@ -8,12 +11,15 @@ public class ChatRequest {
     private String imageModel;
     private String fileContent;
     private String fileName;
+    private Map<String, Object> metadata;
 
     public ChatRequest() {
+        this.metadata = new HashMap<>();
     }
 
     public ChatRequest(String message) {
         this.message = message;
+        this.metadata = new HashMap<>();
     }
 
     public String getMessage() {
@@ -70,5 +76,13 @@ public class ChatRequest {
     
     public void setFileName(String fileName) {
         this.fileName = fileName;
+    }
+
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
     }
 } 

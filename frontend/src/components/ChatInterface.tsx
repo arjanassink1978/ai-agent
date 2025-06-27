@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ChatTab from './ChatTab';
 import ImageTab from './ImageTab';
+import CodingBuddyTab from './CodingBuddyTab';
 import ConfigSection from './ConfigSection';
 import ModelSelector from './ModelSelector';
 
@@ -23,7 +24,7 @@ export interface Config {
 }
 
 export default function ChatInterface() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'image'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'image' | 'coding'>('chat');
   const [isConfigured, setIsConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [config, setConfig] = useState<Config>({
@@ -235,7 +236,7 @@ export default function ChatInterface() {
             className={`tab-button ${activeTab === 'chat' ? 'tab-button-active' : 'tab-button-inactive'}`}
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.08-2.7C2.406 13.02 2 11.56 2 10c0-4.418 4.03-8 9-8s9 3.582 9 8z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
             </svg>
             Chat
           </button>
@@ -244,9 +245,18 @@ export default function ChatInterface() {
             className={`tab-button ${activeTab === 'image' ? 'tab-button-active' : 'tab-button-inactive'}`}
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 2a2 2 0 110 4 2 2 0 010-4zm0 2a2 2 0 100-4 2 2 0 000 4zm8 6H6l2.293-2.293a1 1 0 011.414 0L14 15z" />
+              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
             </svg>
             Generate Images
+          </button>
+          <button
+            onClick={() => setActiveTab('coding')}
+            className={`tab-button ${activeTab === 'coding' ? 'tab-button-active' : 'tab-button-inactive'}`}
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+            Coding Buddy
           </button>
         </div>
       </div>
@@ -258,6 +268,9 @@ export default function ChatInterface() {
         )}
         {activeTab === 'image' && (
           <ImageTab isConfigured={isConfigured} />
+        )}
+        {activeTab === 'coding' && (
+          <CodingBuddyTab isConfigured={isConfigured} />
         )}
       </div>
     </div>
