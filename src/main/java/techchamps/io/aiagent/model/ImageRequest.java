@@ -1,4 +1,4 @@
-package com.example.aiagent.model;
+package techchamps.io.aiagent.model;
 
 public class ImageRequest {
     private String prompt;

@@ -1,4 +1,4 @@
-package com.example.aiagent.model;
+package techchamps.io.aiagent.model;
 
 import java.time.LocalDateTime;
 

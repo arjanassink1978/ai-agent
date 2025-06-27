@@ -1,6 +1,6 @@
-package com.example.aiagent.service;
+package techchamps.io.aiagent.service;
 
-import com.example.aiagent.model.ModelConfig;
+import techchamps.io.aiagent.model.ModelConfig;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.image.CreateImageRequest;

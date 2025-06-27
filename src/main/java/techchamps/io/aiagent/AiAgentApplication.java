@@ -1,4 +1,4 @@
-package com.example.aiagent;
+package techchamps.io.aiagent;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
