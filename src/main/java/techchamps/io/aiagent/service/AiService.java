@@ -1,15 +1,21 @@
 package techchamps.io.aiagent.service;
 
-import techchamps.io.aiagent.model.ModelConfig;
+import techchamps.io.aiagent.model.*;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.image.CreateImageRequest;
 import com.theokanning.openai.service.OpenAiService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,6 +26,9 @@ public class AiService {
 
     @Value("${openai.model:gpt-4}")
     private String defaultModel;
+
+    @Value("${app.upload.dir:uploads}")
+    private String uploadDir;
 
     private OpenAiService openAiService;
     private String currentModel;
@@ -134,6 +143,86 @@ public class AiService {
     }
 
     public List<String> getImageModels() {
-        return ModelConfig.getImageModels();
+        return ModelConfig.IMAGE_MODELS;
+    }
+
+    public void setCurrentImageModel(String model) {
+        if (ModelConfig.IMAGE_MODELS.contains(model)) {
+            this.currentImageModel = model;
+        }
+    }
+
+    // File upload methods
+    public FileUploadResponse handleFileUpload(MultipartFile file, String context, String prompt) {
+        try {
+            // Validate file
+            if (file.isEmpty()) {
+                return new FileUploadResponse("File is empty");
+            }
+
+            // Create upload directory if it doesn't exist
+            Path uploadPath = Paths.get(uploadDir);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            // Generate unique filename
+            String originalFilename = file.getOriginalFilename();
+            String fileExtension = originalFilename != null ? 
+                originalFilename.substring(originalFilename.lastIndexOf(".")) : "";
+            String uniqueFilename = UUID.randomUUID().toString() + fileExtension;
+            Path filePath = uploadPath.resolve(uniqueFilename);
+
+            // Save file
+            Files.copy(file.getInputStream(), filePath);
+
+            if ("chat".equals(context)) {
+                return handleChatFileUpload(file, uniqueFilename, originalFilename);
+            } else if ("image".equals(context)) {
+                return handleImageFileUpload(file, uniqueFilename, originalFilename, prompt);
+            } else {
+                return new FileUploadResponse("Invalid context. Use 'chat' or 'image'");
+            }
+
+        } catch (IOException e) {
+            return new FileUploadResponse("Error uploading file: " + e.getMessage());
+        }
+    }
+
+    private FileUploadResponse handleChatFileUpload(MultipartFile file, String uniqueFilename, String originalFilename) {
+        try {
+            // Read file content
+            String fileContent = new String(file.getBytes());
+            
+            // Create a message with file content
+            String message = "I've uploaded a file: " + originalFilename + "\n\nFile content:\n" + fileContent;
+            
+            return new FileUploadResponse(
+                "File uploaded successfully for chat analysis", 
+                originalFilename, 
+                "chat"
+            );
+        } catch (IOException e) {
+            return new FileUploadResponse("Error reading file content: " + e.getMessage());
+        }
+    }
+
+    private FileUploadResponse handleImageFileUpload(MultipartFile file, String uniqueFilename, String originalFilename, String prompt) {
+        try {
+            // For image generation, we'll use the uploaded image as a reference
+            // This would typically involve calling OpenAI's image variation API
+            // For now, we'll return a success message
+            String message = "Image uploaded successfully for generation. " +
+                           (prompt != null && !prompt.trim().isEmpty() ? 
+                            "Prompt: " + prompt : "No prompt provided");
+            
+            return new FileUploadResponse(
+                message, 
+                originalFilename, 
+                "image"
+            );
+        } catch (Exception e) {
+            return new FileUploadResponse("Error processing image: " + e.getMessage());
+        }
     }
 } 

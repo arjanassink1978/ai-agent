@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -59,9 +60,8 @@ public class ChatController {
         }
     }
 
-    @PostMapping("/api/generate-image")
-    @ResponseBody
-    public ImageResponse generateImage(@RequestBody ImageRequest request) {
+    @PostMapping("/api/image")
+    public ResponseEntity<ImageResponse> generateImage(@RequestBody ImageRequest request) {
         try {
             List<String> imageUrls = aiService.generateImage(
                 request.getPrompt(),
@@ -69,9 +69,9 @@ public class ChatController {
                 request.getQuality(),
                 request.getStyle()
             );
-            return new ImageResponse(imageUrls, request.getPrompt(), request.getModel());
+            return ResponseEntity.ok(new ImageResponse(imageUrls, request.getPrompt(), request.getModel()));
         } catch (Exception e) {
-            return new ImageResponse("Error generating image: " + e.getMessage());
+            return ResponseEntity.badRequest().body(new ImageResponse("Error generating image: " + e.getMessage()));
         }
     }
 
@@ -90,5 +90,33 @@ public class ChatController {
     @ResponseBody
     public ModelConfig getModels() {
         return new ModelConfig(aiService.getCurrentModel(), aiService.getCurrentImageModel());
+    }
+
+    @PostMapping("/api/upload/chat")
+    public ResponseEntity<FileUploadResponse> uploadFileForChat(@RequestParam("file") MultipartFile file) {
+        try {
+            FileUploadResponse response = aiService.handleFileUpload(file, "chat", null);
+            if (response.getError() != null) {
+                return ResponseEntity.badRequest().body(response);
+            }
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new FileUploadResponse("Error uploading file: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/api/upload/image")
+    public ResponseEntity<FileUploadResponse> uploadFileForImage(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "prompt", required = false) String prompt) {
+        try {
+            FileUploadResponse response = aiService.handleFileUpload(file, "image", prompt);
+            if (response.getError() != null) {
+                return ResponseEntity.badRequest().body(response);
+            }
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new FileUploadResponse("Error uploading file: " + e.getMessage()));
+        }
     }
 } 
