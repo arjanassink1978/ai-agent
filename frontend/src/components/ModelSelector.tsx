@@ -24,11 +24,12 @@ export default function ModelSelector({
           <span className="text-sm text-gray-600">Chat Model:</span>
           <span className="font-medium">{currentModel}</span>
           <select
+            value={currentModel}
             onChange={(e) => onModelChange(e.target.value)}
             className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
           >
             {availableModels.map((model) => (
-              <option key={model} value={model} selected={model === currentModel}>
+              <option key={model} value={model}>
                 {model}
               </option>
             ))}
@@ -45,11 +46,12 @@ export default function ModelSelector({
           <span className="text-sm text-gray-600">Image Model:</span>
           <span className="font-medium">{currentImageModel}</span>
           <select
+            value={currentImageModel}
             onChange={(e) => onImageModelChange(e.target.value)}
             className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
           >
             {imageModels.map((model) => (
-              <option key={model} value={model} selected={model === currentImageModel}>
+              <option key={model} value={model}>
                 {model}
               </option>
             ))}

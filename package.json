@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "description": "AI Agent with Spring Boot backend and Next.js frontend",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "npm run kill:ports && npm run clear:cache && concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd . && mvn spring-boot:run",
     "dev:frontend": "cd frontend && npm run dev",
+    "clear:cache": "rm -rf frontend/.next && echo \"✅ Next.js cache cleared\"",
+    "clear:all": "rm -rf frontend/.next frontend/node_modules/.cache && echo \"✅ All caches cleared\"",
+    "kill:ports": "lsof -ti:8080 | xargs kill -9 2>/dev/null || true && lsof -ti:3000 | xargs kill -9 2>/dev/null || true && echo \"✅ Ports 8080 and 3000 cleared\"",
     "build": "npm run build:backend && npm run build:frontend",
     "build:backend": "mvn clean package",
     "build:frontend": "cd frontend && npm run build",
