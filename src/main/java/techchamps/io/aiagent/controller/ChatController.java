@@ -2,6 +2,7 @@ package techchamps.io.aiagent.controller;
 
 import techchamps.io.aiagent.model.*;
 import techchamps.io.aiagent.service.AiService;
+import techchamps.io.aiagent.service.ChatSessionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -16,6 +17,9 @@ public class ChatController {
 
     @Autowired
     private AiService aiService;
+    
+    @Autowired
+    private ChatSessionService chatSessionService;
 
     @GetMapping("/")
     public String chatPage(Model model) {
@@ -31,8 +35,8 @@ public class ChatController {
     @ResponseBody
     public ChatResponse chat(@RequestBody ChatRequest request) {
         try {
-            String response = aiService.generateResponse(request.getMessage());
-            return new ChatResponse(response);
+            // Use the new session-aware method
+            return aiService.generateResponseWithSession(request);
         } catch (Exception e) {
             return new ChatResponse(null, "Error: " + e.getMessage());
         }
@@ -118,5 +122,124 @@ public class ChatController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new FileUploadResponse("Error uploading file: " + e.getMessage()));
         }
+    }
+    
+    // Session management endpoints
+    @GetMapping("/api/sessions")
+    @ResponseBody
+    public List<ChatSession> getAllSessions() {
+        return chatSessionService.getAllSessions();
+    }
+    
+    @GetMapping("/api/sessions/{sessionId}")
+    @ResponseBody
+    public ResponseEntity<SessionResponse> getSession(@PathVariable String sessionId) {
+        try {
+            var session = chatSessionService.getSession(sessionId);
+            if (session.isPresent()) {
+                ChatSession chatSession = session.get();
+                SessionResponse response = new SessionResponse(
+                    chatSession.getSessionId(),
+                    chatSession.getTitle(),
+                    chatSession.getContext(),
+                    chatSession.getModel(),
+                    chatSession.getImageModel()
+                );
+                response.setMessages(chatSessionService.getSessionMessages(sessionId));
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            SessionResponse errorResponse = new SessionResponse();
+            errorResponse.setError("Error retrieving session: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+    
+    @PostMapping("/api/sessions")
+    @ResponseBody
+    public ResponseEntity<SessionResponse> createSession(@RequestBody SessionRequest request) {
+        try {
+            ChatSession session = chatSessionService.createSession(
+                request.getTitle(),
+                request.getContext(),
+                request.getModel(),
+                request.getImageModel()
+            );
+            SessionResponse response = new SessionResponse(
+                session.getSessionId(),
+                session.getTitle(),
+                session.getContext(),
+                session.getModel(),
+                session.getImageModel()
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            SessionResponse errorResponse = new SessionResponse();
+            errorResponse.setError("Error creating session: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+    
+    @PutMapping("/api/sessions/{sessionId}/context")
+    @ResponseBody
+    public ResponseEntity<SessionResponse> updateSessionContext(
+            @PathVariable String sessionId,
+            @RequestBody String context) {
+        try {
+            ChatSession session = chatSessionService.updateSessionContext(sessionId, context);
+            SessionResponse response = new SessionResponse(
+                session.getSessionId(),
+                session.getTitle(),
+                session.getContext(),
+                session.getModel(),
+                session.getImageModel()
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            SessionResponse errorResponse = new SessionResponse();
+            errorResponse.setError("Error updating session context: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+    
+    @PutMapping("/api/sessions/{sessionId}/title")
+    @ResponseBody
+    public ResponseEntity<SessionResponse> updateSessionTitle(
+            @PathVariable String sessionId,
+            @RequestBody String title) {
+        try {
+            ChatSession session = chatSessionService.updateSessionTitle(sessionId, title);
+            SessionResponse response = new SessionResponse(
+                session.getSessionId(),
+                session.getTitle(),
+                session.getContext(),
+                session.getModel(),
+                session.getImageModel()
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            SessionResponse errorResponse = new SessionResponse();
+            errorResponse.setError("Error updating session title: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+    
+    @DeleteMapping("/api/sessions/{sessionId}")
+    @ResponseBody
+    public ResponseEntity<String> deleteSession(@PathVariable String sessionId) {
+        try {
+            chatSessionService.deleteSession(sessionId);
+            return ResponseEntity.ok("Session deleted successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error deleting session: " + e.getMessage());
+        }
+    }
+    
+    @GetMapping("/api/sessions/search")
+    @ResponseBody
+    public List<ChatSession> searchSessions(@RequestParam String q) {
+        return chatSessionService.searchSessions(q);
     }
 } 

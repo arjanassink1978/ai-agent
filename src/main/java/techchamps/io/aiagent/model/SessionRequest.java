@@ -1,74 +1,60 @@
 package techchamps.io.aiagent.model;
 
-public class ChatRequest {
-    private String message;
+public class SessionRequest {
     private String sessionId;
+    private String title;
     private String context;
     private String model;
     private String imageModel;
-    private String fileContent;
-    private String fileName;
 
-    public ChatRequest() {
+    public SessionRequest() {
     }
 
-    public ChatRequest(String message) {
-        this.message = message;
+    public SessionRequest(String sessionId, String title, String context, String model, String imageModel) {
+        this.sessionId = sessionId;
+        this.title = title;
+        this.context = context;
+        this.model = model;
+        this.imageModel = imageModel;
     }
 
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-    
     public String getSessionId() {
         return sessionId;
     }
-    
+
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
     }
-    
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
     public String getContext() {
         return context;
     }
-    
+
     public void setContext(String context) {
         this.context = context;
     }
-    
+
     public String getModel() {
         return model;
     }
-    
+
     public void setModel(String model) {
         this.model = model;
     }
-    
+
     public String getImageModel() {
         return imageModel;
     }
-    
+
     public void setImageModel(String imageModel) {
         this.imageModel = imageModel;
-    }
-    
-    public String getFileContent() {
-        return fileContent;
-    }
-    
-    public void setFileContent(String fileContent) {
-        this.fileContent = fileContent;
-    }
-    
-    public String getFileName() {
-        return fileName;
-    }
-    
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
     }
 } 
