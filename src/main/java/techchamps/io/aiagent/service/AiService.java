@@ -24,297 +24,217 @@ import java.util.stream.Collectors;
 public class AiService {
 
     @Value("${openai.api.key:}")
-    private String apiKey;
+    private String openAiApiKey;
 
     @Value("${openai.model:gpt-4}")
-    private String defaultModel;
+    private String model;
+
+    @Value("${openai.image.model:dall-e-3}")
+    private String imageModel;
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
 
-    @Autowired
-    private ChatSessionService chatSessionService;
-
     private OpenAiService openAiService;
-    private String currentModel;
-    private String currentImageModel;
 
-    public void initializeService() {
-        if (apiKey != null && !apiKey.isEmpty()) {
-            this.openAiService = new OpenAiService(apiKey, Duration.ofSeconds(30));
-            this.currentModel = defaultModel;
-            this.currentImageModel = ModelConfig.getDefaultImageModel();
-        }
-    }
-
-    public void setApiKey(String apiKey) {
-        this.apiKey = apiKey;
-        initializeService();
-    }
-
-    public void setModel(String model) {
-        if (ModelConfig.getAvailableModels().contains(model)) {
-            this.currentModel = model;
+    public void configureOpenAi(String apiKey) {
+        this.openAiApiKey = apiKey;
+        if (apiKey != null && !apiKey.trim().isEmpty()) {
+            this.openAiService = new OpenAiService(apiKey, Duration.ofSeconds(60));
         } else {
-            this.currentModel = ModelConfig.getDefaultModel();
+            this.openAiService = null;
         }
     }
 
-    public void setImageModel(String imageModel) {
-        if (ModelConfig.getImageModels().contains(imageModel)) {
-            this.currentImageModel = imageModel;
-        } else {
-            this.currentImageModel = ModelConfig.getDefaultImageModel();
-        }
-    }
-
-    public void configure(String apiKey, String model) {
-        this.apiKey = apiKey;
-        if (apiKey != null && !apiKey.isEmpty()) {
-            this.openAiService = new OpenAiService(apiKey, Duration.ofSeconds(30));
-        }
-        setModel(model);
-        this.currentImageModel = ModelConfig.getDefaultImageModel();
-    }
-
-    public String generateResponse(String userMessage) {
+    public ChatResponse chat(ChatRequest request) {
         if (openAiService == null) {
-            return "AI service is not configured. Please set the OpenAI API key in application.properties or use the configuration form.";
+            return new ChatResponse("AI service is not configured. Please set the OpenAI API key.");
         }
 
         try {
-            ChatMessage message = new ChatMessage("user", userMessage);
+            List<ChatMessage> messages = new ArrayList<>();
+            messages.add(new ChatMessage("system", "You are a helpful AI assistant."));
             
-            ChatCompletionRequest request = ChatCompletionRequest.builder()
-                    .model(currentModel != null ? currentModel : defaultModel)
-                    .messages(List.of(message))
-                    .maxTokens(1000)
-                    .temperature(0.7)
-                    .build();
+            messages.add(new ChatMessage("user", request.getMessage()));
 
-            return openAiService.createChatCompletion(request)
-                    .getChoices().get(0).getMessage().getContent();
-        } catch (Exception e) {
-            return "Sorry, I encountered an error: " + e.getMessage();
-        }
-    }
-
-    public ChatResponse generateResponseWithSession(ChatRequest chatRequest) {
-        if (openAiService == null) {
-            return new ChatResponse("AI service is not configured. Please set the OpenAI API key.", "CONFIGURATION_ERROR");
-        }
-
-        try {
-            String userMessage = chatRequest.getMessage();
-            String context = chatRequest.getContext();
-            String model = chatRequest.getModel() != null ? chatRequest.getModel() : getCurrentModel();
-            String imageModel = chatRequest.getImageModel() != null ? chatRequest.getImageModel() : getCurrentImageModel();
-
-            // Create or get session
-            ChatSession session;
-            final String sessionId;
-            
-            if (chatRequest.getSessionId() == null || chatRequest.getSessionId().isEmpty()) {
-                // Create new session
-                String title = userMessage.length() > 50 ? userMessage.substring(0, 50) + "..." : userMessage;
-                session = chatSessionService.createSession(title, context, model, imageModel);
-                sessionId = session.getSessionId();
-            } else {
-                // Get existing session
-                sessionId = chatRequest.getSessionId();
-                session = chatSessionService.getSession(sessionId)
-                        .orElseThrow(() -> new RuntimeException("Session not found: " + sessionId));
-            }
-
-            // Add user message to session
-            chatSessionService.addMessage(sessionId, userMessage, "user", null, chatRequest.getFileContent(), chatRequest.getFileName());
-
-            // Build conversation history for OpenAI
-            List<techchamps.io.aiagent.model.ChatMessage> sessionMessages = chatSessionService.getSessionMessages(sessionId);
-            List<ChatMessage> openAiMessages = buildOpenAiMessages(sessionMessages, context);
-
-            // Generate response
-            ChatCompletionRequest request = ChatCompletionRequest.builder()
+            ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
                     .model(model)
-                    .messages(openAiMessages)
+                    .messages(messages)
                     .maxTokens(1000)
-                    .temperature(0.7)
                     .build();
 
-            String aiResponse = openAiService.createChatCompletion(request)
+            String response = openAiService.createChatCompletion(completionRequest)
                     .getChoices().get(0).getMessage().getContent();
 
-            // Add AI response to session
-            chatSessionService.addMessage(sessionId, aiResponse, "assistant", null, null, null);
-
-            // Build response
-            ChatResponse response = new ChatResponse(aiResponse);
-            response.setSessionId(sessionId);
-            response.setMessageHistory(chatSessionService.getSessionMessages(sessionId));
-            response.setContext(session.getContext());
-
-            return response;
-
+            return new ChatResponse(response);
         } catch (Exception e) {
-            ChatResponse errorResponse = new ChatResponse("Sorry, I encountered an error: " + e.getMessage(), "GENERATION_ERROR");
-            errorResponse.setSessionId(chatRequest.getSessionId());
-            return errorResponse;
+            return new ChatResponse("Error: " + e.getMessage());
         }
     }
 
-    private List<ChatMessage> buildOpenAiMessages(List<techchamps.io.aiagent.model.ChatMessage> sessionMessages, String context) {
-        List<ChatMessage> openAiMessages = new ArrayList<>();
-
-        // Add system context if available
-        if (context != null && !context.trim().isEmpty()) {
-            openAiMessages.add(new ChatMessage("system", "Context: " + context));
-        }
-
-        // Add conversation history
-        for (techchamps.io.aiagent.model.ChatMessage sessionMessage : sessionMessages) {
-            String role = "user".equals(sessionMessage.getSender()) ? "user" : "assistant";
-            String content = sessionMessage.getContent();
-            
-            // Include file content if available
-            if (sessionMessage.getFileContent() != null && !sessionMessage.getFileContent().trim().isEmpty()) {
-                content += "\n\nFile: " + sessionMessage.getFileName() + "\nContent:\n" + sessionMessage.getFileContent();
-            }
-            
-            openAiMessages.add(new ChatMessage(role, content));
-        }
-
-        return openAiMessages;
-    }
-
-    public List<String> generateImage(String prompt, String size, String quality, String style) {
+    public ImageResponse generateImage(ImageRequest request) {
         if (openAiService == null) {
-            throw new RuntimeException("AI service is not configured. Please set the OpenAI API key.");
+            return new ImageResponse("AI service is not configured. Please set the OpenAI API key.");
         }
 
         try {
-            String imageSize = "1024x1024";
-            if ("1792x1024".equals(size)) {
-                imageSize = "1792x1024";
-            } else if ("1024x1792".equals(size)) {
-                imageSize = "1024x1792";
-            }
-
-            CreateImageRequest request = CreateImageRequest.builder()
-                    .prompt(prompt)
-                    .model(currentImageModel)
-                    .size(imageSize)
-                    .quality("hd".equals(quality) ? "hd" : "standard")
-                    .style(style != null ? style : "vivid")
+            CreateImageRequest imageRequest = CreateImageRequest.builder()
+                    .prompt(request.getPrompt())
                     .n(1)
+                    .size("1024x1024")
                     .build();
 
-            return openAiService.createImage(request)
-                    .getData()
-                    .stream()
-                    .map(data -> data.getUrl())
+            List<String> imageUrls = openAiService.createImage(imageRequest)
+                    .getData().stream()
+                    .map(image -> image.getUrl())
                     .collect(Collectors.toList());
+
+            return new ImageResponse(imageUrls, request.getPrompt(), "dall-e-3");
         } catch (Exception e) {
-            throw new RuntimeException("Error generating image: " + e.getMessage());
+            return new ImageResponse("Error generating image: " + e.getMessage());
         }
     }
 
-    public boolean isConfigured() {
-        return openAiService != null;
-    }
-
-    public String getCurrentModel() {
-        return currentModel != null ? currentModel : defaultModel;
-    }
-
-    public String getCurrentImageModel() {
-        return currentImageModel != null ? currentImageModel : ModelConfig.getDefaultImageModel();
-    }
-
-    public List<String> getAvailableModels() {
-        return ModelConfig.getAvailableModels();
-    }
-
-    public List<String> getImageModels() {
-        return ModelConfig.IMAGE_MODELS;
-    }
-
-    public void setCurrentImageModel(String model) {
-        if (ModelConfig.IMAGE_MODELS.contains(model)) {
-            this.currentImageModel = model;
-        }
-    }
-
-    // File upload methods
     public FileUploadResponse handleFileUpload(MultipartFile file, String context, String prompt) {
+        if ("image".equals(context)) {
+            String uniqueFilename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            String originalFilename = file.getOriginalFilename();
+            return handleImageFileUpload(file, uniqueFilename, originalFilename, prompt);
+        } else {
+            String uniqueFilename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            String originalFilename = file.getOriginalFilename();
+            return handleChatFileUpload(file, uniqueFilename, originalFilename);
+        }
+    }
+
+    public FileUploadResponse handleImageFileUpload(MultipartFile file, String uniqueFilename, String originalFilename, String prompt) {
         try {
-            // Validate file
-            if (file.isEmpty()) {
-                return new FileUploadResponse("File is empty");
+            if (openAiService == null) {
+                return new FileUploadResponse("AI service is not configured. Please set the OpenAI API key.");
             }
 
-            // Create upload directory if it doesn't exist
             Path uploadPath = Paths.get(uploadDir);
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
             }
-
-            // Generate unique filename
-            String originalFilename = file.getOriginalFilename();
-            String fileExtension = originalFilename != null ? 
-                originalFilename.substring(originalFilename.lastIndexOf(".")) : "";
-            String uniqueFilename = UUID.randomUUID().toString() + fileExtension;
             Path filePath = uploadPath.resolve(uniqueFilename);
-
-            // Save file
             Files.copy(file.getInputStream(), filePath);
 
-            if ("chat".equals(context)) {
-                return handleChatFileUpload(file, uniqueFilename, originalFilename);
-            } else if ("image".equals(context)) {
-                return handleImageFileUpload(file, uniqueFilename, originalFilename, prompt);
-            } else {
-                return new FileUploadResponse("Invalid context. Use 'chat' or 'image'");
-            }
+            String generationPrompt = prompt != null ? prompt : "Create a creative variation inspired by the uploaded image";
+            
+            CreateImageRequest imageRequest = CreateImageRequest.builder()
+                    .prompt(generationPrompt)
+                    .n(1)
+                    .size("1024x1024")
+                    .build();
 
-        } catch (IOException e) {
-            return new FileUploadResponse("Error uploading file: " + e.getMessage());
+            List<String> imageUrls = openAiService.createImage(imageRequest)
+                    .getData().stream()
+                    .map(image -> image.getUrl())
+                    .collect(Collectors.toList());
+
+            return new FileUploadResponse(
+                "Image uploaded and processed successfully",
+                uniqueFilename,
+                imageUrls,
+                "image"
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new FileUploadResponse("Error generating image: " + e.getMessage());
         }
     }
 
     private FileUploadResponse handleChatFileUpload(MultipartFile file, String uniqueFilename, String originalFilename) {
         try {
-            // Read file content
-            String fileContent = new String(file.getBytes());
-            
-            // Create a message with file content
-            String message = "I've uploaded a file: " + originalFilename + "\n\nFile content:\n" + fileContent;
-            
+            Path uploadPath = Paths.get(uploadDir);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+            Path filePath = uploadPath.resolve(uniqueFilename);
+            Files.copy(file.getInputStream(), filePath);
+
             return new FileUploadResponse(
-                "File uploaded successfully for chat analysis", 
-                originalFilename, 
+                "File uploaded successfully",
+                uniqueFilename,
                 "chat"
             );
         } catch (IOException e) {
-            return new FileUploadResponse("Error reading file content: " + e.getMessage());
+            return new FileUploadResponse("Error uploading file: " + e.getMessage());
         }
     }
 
-    private FileUploadResponse handleImageFileUpload(MultipartFile file, String uniqueFilename, String originalFilename, String prompt) {
-        try {
-            // For image generation, we'll use the uploaded image as a reference
-            // This would typically involve calling OpenAI's image variation API
-            // For now, we'll return a success message
-            String message = "Image uploaded successfully for generation. " +
-                           (prompt != null && !prompt.trim().isEmpty() ? 
-                            "Prompt: " + prompt : "No prompt provided");
-            
-            return new FileUploadResponse(
-                message, 
-                originalFilename, 
-                "image"
-            );
-        } catch (Exception e) {
-            return new FileUploadResponse("Error processing image: " + e.getMessage());
+    // Configuration and model management methods
+    public void configure(String apiKey, String model) {
+        this.openAiApiKey = apiKey;
+        this.model = model;
+        if (apiKey != null && !apiKey.trim().isEmpty()) {
+            this.openAiService = new OpenAiService(apiKey, Duration.ofSeconds(60));
         }
+    }
+
+    public void setModel(String model) {
+        this.model = model;
+    }
+
+    public void setImageModel(String imageModel) {
+        this.imageModel = imageModel;
+    }
+
+    public String getCurrentModel() {
+        return model;
+    }
+
+    public String getCurrentImageModel() {
+        return imageModel;
+    }
+
+    public boolean isConfigured() {
+        return openAiService != null && openAiApiKey != null && !openAiApiKey.trim().isEmpty();
+    }
+
+    public List<String> getAvailableModels() {
+        return List.of("gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-3.5-turbo", "gpt-3.5-turbo-16k");
+    }
+
+    public List<String> getImageModels() {
+        return List.of("dall-e-3", "dall-e-2");
+    }
+
+    public ChatResponse generateResponseWithSession(ChatRequest request) {
+        if (openAiService == null) {
+            return new ChatResponse("AI service is not configured. Please set the OpenAI API key.");
+        }
+
+        try {
+            List<ChatMessage> messages = new ArrayList<>();
+            messages.add(new ChatMessage("system", "You are a helpful AI assistant."));
+            messages.add(new ChatMessage("user", request.getMessage()));
+
+            ChatCompletionRequest completionRequest = ChatCompletionRequest.builder()
+                    .model(model)
+                    .messages(messages)
+                    .maxTokens(1000)
+                    .build();
+
+            String response = openAiService.createChatCompletion(completionRequest)
+                    .getChoices().get(0).getMessage().getContent();
+
+            return new ChatResponse(response);
+        } catch (Exception e) {
+            return new ChatResponse("Error: " + e.getMessage());
+        }
+    }
+
+    // Overload for controller compatibility
+    public ImageResponse generateImage(String prompt, String size, String quality, String style) {
+        ImageRequest req = new ImageRequest();
+        req.setPrompt(prompt);
+        req.setSize(size);
+        req.setQuality(quality);
+        req.setStyle(style);
+        req.setModel(this.imageModel);
+        return generateImage(req);
     }
 } 

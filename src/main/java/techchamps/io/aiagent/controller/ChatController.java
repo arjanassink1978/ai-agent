@@ -67,13 +67,13 @@ public class ChatController {
     @PostMapping("/api/image")
     public ResponseEntity<ImageResponse> generateImage(@RequestBody ImageRequest request) {
         try {
-            List<String> imageUrls = aiService.generateImage(
+            ImageResponse response = aiService.generateImage(
                 request.getPrompt(),
                 request.getSize(),
                 request.getQuality(),
                 request.getStyle()
             );
-            return ResponseEntity.ok(new ImageResponse(imageUrls, request.getPrompt(), request.getModel()));
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new ImageResponse("Error generating image: " + e.getMessage()));
         }

@@ -51,6 +51,7 @@ export default function ChatTab({ isConfigured }: ChatTabProps) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!inputMessage.trim() || !isConfigured) return;
 
     const userMessage = inputMessage.trim();
@@ -109,14 +110,11 @@ export default function ChatTab({ isConfigured }: ChatTabProps) {
     <div className="flex flex-col h-full">
       <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
         <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+          {messages.map((message, index) => (
+            <div key={`${message.sender}-${index}-${message.timestamp.getTime()}`} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               {message.type === 'image' && message.imageUrl ? (
-                <div className="max-w-[70%] bg-white border border-gray-200 rounded-2xl rounded-bl-md p-4">
-                  <div className="text-sm italic text-gray-600 mb-3">
+                <div className="chat-bubble-image">
+                  <div className="image-prompt-text">
                     Generated: &ldquo;{message.prompt}&rdquo;
                   </div>
                   <img
@@ -125,7 +123,7 @@ export default function ChatTab({ isConfigured }: ChatTabProps) {
                     className="w-full rounded-lg shadow-md"
                     onLoad={scrollToBottom}
                   />
-                  <div className="text-xs text-gray-500 mt-2">
+                  <div className="chat-timestamp-assistant">
                     {message.timestamp.toLocaleTimeString('en-US', { 
                       hour: '2-digit', 
                       minute: '2-digit',
@@ -134,15 +132,9 @@ export default function ChatTab({ isConfigured }: ChatTabProps) {
                   </div>
                 </div>
               ) : (
-                <div className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                  message.sender === 'user' 
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-md' 
-                    : 'bg-white border border-gray-200 rounded-bl-md'
-                }`}>
+                <div className={message.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}>
                   <div className="whitespace-pre-wrap">{message.content}</div>
-                  <div className={`text-xs mt-2 ${
-                    message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
+                  <div className={message.sender === 'user' ? 'chat-timestamp-user' : 'chat-timestamp-assistant'}>
                     {message.timestamp.toLocaleTimeString('en-US', { 
                       hour: '2-digit', 
                       minute: '2-digit',
@@ -156,12 +148,10 @@ export default function ChatTab({ isConfigured }: ChatTabProps) {
           
           {isTyping && (
             <div className="flex justify-start">
-              <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
+              <div className="typing-indicator">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
               </div>
             </div>
           )}
@@ -177,7 +167,7 @@ export default function ChatTab({ isConfigured }: ChatTabProps) {
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             disabled={!isConfigured}
-            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:border-blue-500"
+            className="chat-input"
           />
           <button
             type="submit"

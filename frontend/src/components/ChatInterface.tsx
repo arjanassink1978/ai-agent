@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ChatTab from './ChatTab';
 import ImageTab from './ImageTab';
 import ConfigSection from './ConfigSection';
@@ -25,6 +25,7 @@ export interface Config {
 export default function ChatInterface() {
   const [activeTab, setActiveTab] = useState<'chat' | 'image'>('chat');
   const [isConfigured, setIsConfigured] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [config, setConfig] = useState<Config>({
     apiKey: '',
     model: 'gpt-4',
@@ -42,6 +43,71 @@ export default function ChatInterface() {
     'dall-e-2'
   ]);
 
+  // Load current configuration on startup
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        console.log('Loading configuration from backend...');
+        const response = await fetch('/api/models');
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Configuration data:', data);
+          const currentConfig = {
+            apiKey: '', // Always start with empty API key
+            model: data.selectedModel || 'gpt-4',
+            imageModel: data.selectedImageModel || 'dall-e-3'
+          };
+          setConfig(currentConfig);
+          // Await API key check
+          await checkApiKeyStatus();
+        } else {
+          console.log('Failed to load configuration, status:', response.status);
+          const errorText = await response.text();
+          console.log('Error response:', errorText);
+          setIsConfigured(false);
+        }
+      } catch (error) {
+        console.error('Error loading configuration:', error);
+        setIsConfigured(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const checkApiKeyStatus = async () => {
+      try {
+        const testResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: 'test',
+            sessionId: 'test-session'
+          })
+        });
+        
+        const testData = await testResponse.json();
+        console.log('Test response:', testData);
+        
+        if (testResponse.ok && !testData.error && testData.message !== 'AI service is not configured. Please set the OpenAI API key.') {
+          setIsConfigured(true);
+          console.log('API key is configured');
+        } else {
+          setIsConfigured(false);
+          console.log('API key not configured');
+        }
+      } catch (testError) {
+        console.log('Test call failed, assuming API key not configured');
+        setIsConfigured(false);
+      }
+    };
+
+    loadConfig();
+  }, []);
+
   const handleConfigSubmit = async (newConfig: Config) => {
     try {
       const response = await fetch('/api/configure', {
@@ -55,12 +121,13 @@ export default function ChatInterface() {
       if (response.ok) {
         setConfig(newConfig);
         setIsConfigured(true);
+        console.log('Configuration successful!');
       } else {
         const error = await response.text();
-        alert(`Configuration failed: ${error}`);
+        console.error(`Configuration failed: ${error}`);
       }
     } catch (error) {
-      alert(`Error: ${error}`);
+      console.error(`Error: ${error}`);
     }
   };
 
@@ -76,13 +143,13 @@ export default function ChatInterface() {
 
       if (response.ok) {
         setConfig(prev => ({ ...prev, model }));
-        alert(`Model updated to: ${model}`);
+        console.log(`Model updated to: ${model}`);
       } else {
         const error = await response.text();
-        alert(`Failed to update model: ${error}`);
+        console.error(`Failed to update model: ${error}`);
       }
     } catch (error) {
-      alert(`Error: ${error}`);
+      console.error(`Error: ${error}`);
     }
   };
 
@@ -98,23 +165,44 @@ export default function ChatInterface() {
 
       if (response.ok) {
         setConfig(prev => ({ ...prev, imageModel }));
-        alert(`Image model updated to: ${imageModel}`);
+        console.log(`Image model updated to: ${imageModel}`);
       } else {
         const error = await response.text();
-        alert(`Failed to update image model: ${error}`);
+        console.error(`Failed to update image model: ${error}`);
       }
     } catch (error) {
-      alert(`Error: ${error}`);
+      console.error(`Error: ${error}`);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 text-center text-2xl font-bold">
+          AI Agent Chat & Image Generator
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-gray-600">Loading configuration...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 text-center text-2xl font-bold flex-shrink-0">
         <div className="flex items-center justify-center gap-3">
           <div className={`w-3 h-3 rounded-full ${isConfigured ? 'bg-green-400' : 'bg-red-400'}`}></div>
           AI Agent Chat & Image Generator
+          {isConfigured && (
+            <button
+              onClick={() => setIsConfigured(false)}
+              className="ml-4 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+            >
+              Reconfigure
+            </button>
+          )}
         </div>
       </div>
 
@@ -123,6 +211,7 @@ export default function ChatInterface() {
         <ConfigSection 
           onSubmit={handleConfigSubmit}
           availableModels={availableModels}
+          currentConfig={config}
         />
       )}
 
@@ -139,27 +228,27 @@ export default function ChatInterface() {
       )}
 
       {/* Tab Navigation */}
-      <div className="flex bg-gray-50 border-b border-gray-200 flex-shrink-0">
-        <button
-          className={`flex-1 py-4 text-center font-medium transition-all ${
-            activeTab === 'chat'
-              ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-          onClick={() => setActiveTab('chat')}
-        >
-          💬 Chat
-        </button>
-        <button
-          className={`flex-1 py-4 text-center font-medium transition-all ${
-            activeTab === 'image'
-              ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-          onClick={() => setActiveTab('image')}
-        >
-          🎨 Generate Images
-        </button>
+      <div className="bg-white border-b border-gray-200 flex-shrink-0 p-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`tab-button ${activeTab === 'chat' ? 'tab-button-active' : 'tab-button-inactive'}`}
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.08-2.7C2.406 13.02 2 11.56 2 10c0-4.418 4.03-8 9-8s9 3.582 9 8z" clipRule="evenodd" />
+            </svg>
+            Chat
+          </button>
+          <button
+            onClick={() => setActiveTab('image')}
+            className={`tab-button ${activeTab === 'image' ? 'tab-button-active' : 'tab-button-inactive'}`}
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 2a2 2 0 110 4 2 2 0 010-4zm0 2a2 2 0 100-4 2 2 0 000 4zm8 6H6l2.293-2.293a1 1 0 011.414 0L14 15z" />
+            </svg>
+            Generate Images
+          </button>
+        </div>
       </div>
 
       {/* Tab Content */}
