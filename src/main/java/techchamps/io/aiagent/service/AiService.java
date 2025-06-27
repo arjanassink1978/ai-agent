@@ -5,6 +5,7 @@ import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.image.CreateImageRequest;
 import com.theokanning.openai.service.OpenAiService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -29,6 +31,9 @@ public class AiService {
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    @Autowired
+    private ChatSessionService chatSessionService;
 
     private OpenAiService openAiService;
     private String currentModel;
@@ -92,6 +97,93 @@ public class AiService {
         } catch (Exception e) {
             return "Sorry, I encountered an error: " + e.getMessage();
         }
+    }
+
+    public ChatResponse generateResponseWithSession(ChatRequest chatRequest) {
+        if (openAiService == null) {
+            return new ChatResponse("AI service is not configured. Please set the OpenAI API key.", "CONFIGURATION_ERROR");
+        }
+
+        try {
+            String userMessage = chatRequest.getMessage();
+            String context = chatRequest.getContext();
+            String model = chatRequest.getModel() != null ? chatRequest.getModel() : getCurrentModel();
+            String imageModel = chatRequest.getImageModel() != null ? chatRequest.getImageModel() : getCurrentImageModel();
+
+            // Create or get session
+            ChatSession session;
+            final String sessionId;
+            
+            if (chatRequest.getSessionId() == null || chatRequest.getSessionId().isEmpty()) {
+                // Create new session
+                String title = userMessage.length() > 50 ? userMessage.substring(0, 50) + "..." : userMessage;
+                session = chatSessionService.createSession(title, context, model, imageModel);
+                sessionId = session.getSessionId();
+            } else {
+                // Get existing session
+                sessionId = chatRequest.getSessionId();
+                session = chatSessionService.getSession(sessionId)
+                        .orElseThrow(() -> new RuntimeException("Session not found: " + sessionId));
+            }
+
+            // Add user message to session
+            chatSessionService.addMessage(sessionId, userMessage, "user", null, chatRequest.getFileContent(), chatRequest.getFileName());
+
+            // Build conversation history for OpenAI
+            List<techchamps.io.aiagent.model.ChatMessage> sessionMessages = chatSessionService.getSessionMessages(sessionId);
+            List<ChatMessage> openAiMessages = buildOpenAiMessages(sessionMessages, context);
+
+            // Generate response
+            ChatCompletionRequest request = ChatCompletionRequest.builder()
+                    .model(model)
+                    .messages(openAiMessages)
+                    .maxTokens(1000)
+                    .temperature(0.7)
+                    .build();
+
+            String aiResponse = openAiService.createChatCompletion(request)
+                    .getChoices().get(0).getMessage().getContent();
+
+            // Add AI response to session
+            chatSessionService.addMessage(sessionId, aiResponse, "assistant", null, null, null);
+
+            // Build response
+            ChatResponse response = new ChatResponse(aiResponse);
+            response.setSessionId(sessionId);
+            response.setMessageHistory(chatSessionService.getSessionMessages(sessionId));
+            response.setContext(session.getContext());
+
+            return response;
+
+        } catch (Exception e) {
+            ChatResponse errorResponse = new ChatResponse("Sorry, I encountered an error: " + e.getMessage(), "GENERATION_ERROR");
+            errorResponse.setSessionId(chatRequest.getSessionId());
+            return errorResponse;
+        }
+    }
+
+    private List<ChatMessage> buildOpenAiMessages(List<techchamps.io.aiagent.model.ChatMessage> sessionMessages, String context) {
+        List<ChatMessage> openAiMessages = new ArrayList<>();
+
+        // Add system context if available
+        if (context != null && !context.trim().isEmpty()) {
+            openAiMessages.add(new ChatMessage("system", "Context: " + context));
+        }
+
+        // Add conversation history
+        for (techchamps.io.aiagent.model.ChatMessage sessionMessage : sessionMessages) {
+            String role = "user".equals(sessionMessage.getSender()) ? "user" : "assistant";
+            String content = sessionMessage.getContent();
+            
+            // Include file content if available
+            if (sessionMessage.getFileContent() != null && !sessionMessage.getFileContent().trim().isEmpty()) {
+                content += "\n\nFile: " + sessionMessage.getFileName() + "\nContent:\n" + sessionMessage.getFileContent();
+            }
+            
+            openAiMessages.add(new ChatMessage(role, content));
+        }
+
+        return openAiMessages;
     }
 
     public List<String> generateImage(String prompt, String size, String quality, String style) {
