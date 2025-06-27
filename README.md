@@ -1,151 +1,232 @@
-# AI Agent Chat Application
+# AI Agent
 
-A simple Java Spring Boot application that provides a chat interface to interact with an AI agent powered by OpenAI's GPT models.
+A modern AI chat and image generation application built with Spring Boot backend and Next.js frontend.
 
-## Features
+## 🚀 Features
 
-- 🚀 Modern web-based chat interface
-- 🤖 Integration with OpenAI GPT models
-- 💬 Real-time chat with typing indicators
-- 🎨 Beautiful, responsive UI design
-- ⚙️ Easy configuration through web interface
-- 🔒 Secure API key handling
+- **💬 AI Chat**: Real-time conversation with OpenAI GPT models (GPT-4, GPT-3.5, etc.)
+- **🎨 Image Generation**: Create stunning images using DALL-E models
+- **🔧 Model Configuration**: Switch between different AI models dynamically
+- **📱 Responsive Design**: Modern, mobile-friendly interface
+- **⚡ Real-time Updates**: Live chat with typing indicators
+- **🔄 Tabbed Interface**: Separate tabs for chat and image generation
 
-## Prerequisites
+## 🏗️ Architecture
 
-- Java 17 or higher
-- Maven 3.6 or higher
-- OpenAI API key
+This project uses a modern microservices architecture:
 
-## Setup Instructions
+- **Backend**: Spring Boot 3.2 with Java 17
+- **Frontend**: Next.js 14 with TypeScript and Tailwind CSS
+- **API**: RESTful API with CORS support
+- **Styling**: Modern UI with gradient backgrounds and smooth animations
 
-### 1. Clone and Navigate to Project
-```bash
-cd ai-agent
+## 📁 Project Structure
+
+```
+ai-agent/
+├── src/                    # Spring Boot backend
+│   ├── main/java/techchamps/io/aiagent/
+│   │   ├── controller/     # REST API controllers
+│   │   ├── service/        # Business logic
+│   │   ├── model/          # Data models
+│   │   └── config/         # Configuration classes
+│   └── main/resources/     # Application properties
+├── frontend/               # Next.js frontend
+│   ├── src/
+│   │   ├── app/           # Next.js app router
+│   │   └── components/    # React components
+│   ├── package.json       # Frontend dependencies
+│   └── next.config.js     # Next.js configuration
+├── pom.xml                # Maven configuration
+└── package.json           # Root package.json for scripts
 ```
 
-### 2. Build the Project
+## 🛠️ Tech Stack
+
+### Backend
+- **Framework**: Spring Boot 3.2
+- **Language**: Java 17
+- **Build Tool**: Maven
+- **AI Integration**: OpenAI GPT & DALL-E APIs
+- **JSON Processing**: Jackson
+- **HTTP Client**: OpenAiService
+
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: React Hooks
+- **HTTP Client**: Fetch API
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Java 17+**
+- **Node.js 18+**
+- **Maven 3.6+**
+- **OpenAI API Key**
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd ai-agent
+   ```
+
+2. **Install frontend dependencies**:
+   ```bash
+   npm run install:frontend
+   ```
+
+3. **Install root dependencies**:
+   ```bash
+   npm install
+   ```
+
+### Development
+
+#### Option 1: Run Both Frontend and Backend Together
 ```bash
-mvn clean install
+npm run dev
 ```
 
-### 3. Configure OpenAI API Key
+This will start:
+- Spring Boot backend on `http://localhost:8080`
+- Next.js frontend on `http://localhost:3000`
 
-You have two options to configure your OpenAI API key:
+#### Option 2: Run Separately
 
-#### Option A: Environment Variable (Recommended)
+**Backend only**:
 ```bash
-export OPENAI_API_KEY="your-openai-api-key-here"
-```
-
-#### Option B: Application Properties
-Edit `src/main/resources/application.properties` and add:
-```properties
-openai.api.key=your-openai-api-key-here
-```
-
-### 4. Run the Application
-```bash
+npm run dev:backend
+# or
 mvn spring-boot:run
 ```
 
-### 5. Access the Application
-Open your browser and navigate to:
-```
-http://localhost:8080
-```
-
-## Usage
-
-1. **First Time Setup**: If no API key is configured, you'll see a configuration form at the top of the chat interface. Enter your OpenAI API key and click "Configure".
-
-2. **Chatting**: Once configured, you can start chatting with the AI agent. Simply type your message in the input field and press Enter or click the send button.
-
-3. **Real-time Interaction**: The interface shows typing indicators when the AI is processing your request.
-
-## Configuration Options
-
-You can customize the application by modifying `src/main/resources/application.properties`:
-
-```properties
-# Server port (default: 8080)
-server.port=8080
-
-# OpenAI model to use (default: gpt-4)
-openai.model=gpt-4
-
-# API key (can also be set via environment variable)
-openai.api.key=${OPENAI_API_KEY:}
-```
-
-## Project Structure
-
-```
-src/
-├── main/
-│   ├── java/com/example/aiagent/
-│   │   ├── AiAgentApplication.java      # Main Spring Boot application
-│   │   ├── controller/
-│   │   │   └── ChatController.java      # REST endpoints and web controller
-│   │   ├── model/
-│   │   │   ├── ChatMessage.java         # Message model
-│   │   │   ├── ChatRequest.java         # Request model
-│   │   │   └── ChatResponse.java        # Response model
-│   │   └── service/
-│   │       └── AiService.java           # OpenAI integration service
-│   └── resources/
-│       ├── application.properties       # Configuration
-│       └── templates/
-│           └── chat.html               # Web interface template
-└── test/                               # Test files
-```
-
-## API Endpoints
-
-- `GET /` - Main chat interface
-- `POST /api/chat` - Send a message to the AI agent
-- `POST /api/configure` - Configure the OpenAI API key
-
-## Development
-
-### Running Tests
+**Frontend only**:
 ```bash
-mvn test
+npm run dev:frontend
+# or
+cd frontend && npm run dev
 ```
 
-### Building JAR
+### Production Build
+
 ```bash
-mvn clean package
+# Build both frontend and backend
+npm run build
+
+# Start production servers
+npm start
 ```
 
-### Running JAR
-```bash
-java -jar target/ai-agent-1.0.0.jar
-```
+## 🔧 Configuration
 
-## Security Notes
+### OpenAI API Key
 
-- The API key is stored in memory only and is not persisted
-- In a production environment, consider using a secure configuration management system
-- The current implementation is for development/demo purposes
+You can provide your OpenAI API key in several ways:
 
-## Troubleshooting
+1. **Environment Variable**:
+   ```bash
+   export OPENAI_API_KEY=your_api_key_here
+   ```
+
+2. **Application Properties**:
+   ```properties
+   # src/main/resources/application.properties
+   openai.api.key=your_api_key_here
+   ```
+
+3. **Web Interface**: Use the configuration form in the application
+
+### Available Models
+
+**Chat Models**:
+- `gpt-4` (default)
+- `gpt-4-turbo`
+- `gpt-4o`
+- `gpt-3.5-turbo`
+- `gpt-3.5-turbo-16k`
+
+**Image Models**:
+- `dall-e-3` (default)
+- `dall-e-2`
+
+## 📱 Usage
+
+1. **Open the application**: Navigate to `http://localhost:3000`
+2. **Configure API**: Enter your OpenAI API key and select models
+3. **Start chatting**: Use the Chat tab for text conversations
+4. **Generate images**: Use the Image tab to create images with DALL-E
+
+## 🔌 API Endpoints
+
+### Chat
+- `POST /api/chat` - Send a chat message
+- `POST /api/configure` - Configure API key and models
+- `POST /api/set-model` - Change chat model
+
+### Image Generation
+- `POST /api/generate-image` - Generate an image
+- `POST /api/set-image-model` - Change image model
+
+### Models
+- `GET /api/models` - Get current model configuration
+
+## 🎨 Features
+
+### Chat Interface
+- Real-time message exchange
+- Typing indicators
+- Message timestamps
+- Responsive design
+- Auto-scroll to latest messages
+
+### Image Generation
+- Multiple size options (Square, Landscape, Portrait)
+- Quality settings (Standard, HD)
+- Style options (Vivid, Natural)
+- Image preview with prompts
+- Download generated images
+
+### Model Management
+- Dynamic model switching
+- Separate chat and image models
+- Configuration persistence
+- Real-time model updates
+
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **"AI service is not configured"**: Make sure you've set the OpenAI API key either via environment variable or in the web interface.
-
-2. **Connection errors**: Verify your internet connection and that the OpenAI API is accessible.
-
-3. **Port already in use**: Change the server port in `application.properties` or stop the process using port 8080.
+1. **CORS Errors**: Ensure the backend is running on port 8080
+2. **API Key Issues**: Verify your OpenAI API key is valid
+3. **Port Conflicts**: Check that ports 8080 and 3000 are available
+4. **Build Errors**: Ensure you have the correct Java and Node.js versions
 
 ### Logs
-Check the application logs for detailed error information. The application runs with DEBUG logging enabled by default.
 
-## Contributing
+- **Backend logs**: Check Maven/Spring Boot console output
+- **Frontend logs**: Check browser developer console
+- **Network issues**: Verify API proxy configuration in `next.config.js`
 
-Feel free to submit issues and enhancement requests!
+## 🤝 Contributing
 
-## License
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-This project is open source and available under the MIT License. 
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🙏 Acknowledgments
+
+- OpenAI for providing the GPT and DALL-E APIs
+- Spring Boot team for the excellent framework
+- Next.js team for the modern React framework
+- Tailwind CSS for the utility-first styling approach 
