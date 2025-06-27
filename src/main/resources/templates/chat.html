@@ -154,14 +154,25 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         .config-input {
             flex: 1;
+            min-width: 200px;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 14px;
+        }
+
+        .config-select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            background: white;
+            min-width: 150px;
         }
 
         .config-button {
@@ -193,6 +204,41 @@
         .status-disconnected {
             background: #dc3545;
         }
+
+        .model-info {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .model-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .model-selector select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .model-selector button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .model-selector button:hover {
+            background: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -205,8 +251,21 @@
         <div class="config-section" th:if="${!isConfigured}">
             <form class="config-form" id="configForm">
                 <input type="password" class="config-input" id="apiKey" placeholder="Enter your OpenAI API key" required>
+                <select class="config-select" id="modelSelect" th:each="model : ${availableModels}">
+                    <option th:value="${model}" th:text="${model}" th:selected="${model == currentModel}"></option>
+                </select>
                 <button type="submit" class="config-button">Configure</button>
             </form>
+        </div>
+
+        <div class="model-info" th:if="${isConfigured}">
+            <div class="model-selector">
+                <span>Current Model: <strong th:text="${currentModel}">gpt-4</strong></span>
+                <select id="modelChangeSelect" th:each="model : ${availableModels}">
+                    <option th:value="${model}" th:text="${model}" th:selected="${model == currentModel}"></option>
+                </select>
+                <button onclick="changeModel()">Change Model</button>
+            </div>
         </div>
 
         <div class="chat-messages" id="chatMessages">
@@ -299,6 +358,31 @@
             }
         }
 
+        async function changeModel() {
+            const modelSelect = document.getElementById('modelChangeSelect');
+            const selectedModel = modelSelect.value;
+            
+            try {
+                const response = await fetch('/api/model', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `model=${encodeURIComponent(selectedModel)}`
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    alert(`Error: ${data.error}`);
+                } else {
+                    alert(data.message);
+                    location.reload();
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const message = messageInput.value.trim();
@@ -314,14 +398,15 @@
             configForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const apiKey = document.getElementById('apiKey').value;
+                const model = document.getElementById('modelSelect').value;
                 
                 try {
                     const response = await fetch('/api/configure', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Content-Type': 'application/json',
                         },
-                        body: `apiKey=${encodeURIComponent(apiKey)}`
+                        body: JSON.stringify({ apiKey: apiKey, model: model })
                     });
 
                     const data = await response.json();

@@ -1,5 +1,6 @@
 package com.example.aiagent.service;
 
+import com.example.aiagent.model.ModelConfig;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.service.OpenAiService;
@@ -16,19 +17,37 @@ public class AiService {
     private String apiKey;
 
     @Value("${openai.model:gpt-4}")
-    private String model;
+    private String defaultModel;
 
     private OpenAiService openAiService;
+    private String currentModel;
 
     public void initializeService() {
         if (apiKey != null && !apiKey.isEmpty()) {
             this.openAiService = new OpenAiService(apiKey, Duration.ofSeconds(30));
+            this.currentModel = defaultModel;
         }
     }
 
     public void setApiKey(String apiKey) {
         this.apiKey = apiKey;
         initializeService();
+    }
+
+    public void setModel(String model) {
+        if (ModelConfig.getAvailableModels().contains(model)) {
+            this.currentModel = model;
+        } else {
+            this.currentModel = ModelConfig.getDefaultModel();
+        }
+    }
+
+    public void configure(String apiKey, String model) {
+        this.apiKey = apiKey;
+        if (apiKey != null && !apiKey.isEmpty()) {
+            this.openAiService = new OpenAiService(apiKey, Duration.ofSeconds(30));
+        }
+        setModel(model);
     }
 
     public String generateResponse(String userMessage) {
@@ -40,7 +59,7 @@ public class AiService {
             ChatMessage message = new ChatMessage("user", userMessage);
             
             ChatCompletionRequest request = ChatCompletionRequest.builder()
-                    .model(model)
+                    .model(currentModel != null ? currentModel : defaultModel)
                     .messages(List.of(message))
                     .maxTokens(1000)
                     .temperature(0.7)
@@ -55,5 +74,13 @@ public class AiService {
 
     public boolean isConfigured() {
         return openAiService != null;
+    }
+
+    public String getCurrentModel() {
+        return currentModel != null ? currentModel : defaultModel;
+    }
+
+    public List<String> getAvailableModels() {
+        return ModelConfig.getAvailableModels();
     }
 } 
