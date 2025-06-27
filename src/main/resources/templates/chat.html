@@ -18,6 +18,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            padding: 20px 0;
         }
 
         .chat-container {
@@ -26,7 +27,7 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             width: 90%;
             max-width: 900px;
-            height: 85vh;
+            max-height: 90vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -39,12 +40,14 @@
             text-align: center;
             font-size: 24px;
             font-weight: bold;
+            flex-shrink: 0;
         }
 
         .tab-container {
             display: flex;
             background: #f8f9fa;
             border-bottom: 1px solid #e0e0e0;
+            flex-shrink: 0;
         }
 
         .tab {
@@ -73,6 +76,8 @@
             display: none;
             flex: 1;
             flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .tab-content.active {
@@ -84,6 +89,7 @@
             padding: 20px;
             overflow-y: auto;
             background: #f8f9fa;
+            min-height: 0;
         }
 
         .message {
@@ -133,6 +139,7 @@
 
         .generated-image {
             max-width: 100%;
+            height: auto;
             border-radius: 10px;
             margin-top: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -148,6 +155,7 @@
             padding: 20px;
             background: white;
             border-top: 1px solid #e0e0e0;
+            flex-shrink: 0;
         }
 
         .chat-input-form {
@@ -202,12 +210,14 @@
             border-bottom-left-radius: 4px;
             color: #666;
             font-style: italic;
+            margin: 0 20px 15px 20px;
         }
 
         .config-section {
             background: #f8f9fa;
             padding: 20px;
             border-bottom: 1px solid #e0e0e0;
+            flex-shrink: 0;
         }
 
         .config-form {
@@ -270,6 +280,7 @@
             color: #666;
             margin-top: 10px;
             text-align: center;
+            flex-shrink: 0;
         }
 
         .model-selector {
@@ -306,6 +317,7 @@
             padding: 20px;
             background: white;
             border-top: 1px solid #e0e0e0;
+            flex-shrink: 0;
         }
 
         .image-form {
@@ -374,6 +386,26 @@
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+
+        /* Ensure proper scrolling on mobile devices */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px 0;
+            }
+            
+            .chat-container {
+                width: 95%;
+                max-height: 95vh;
+            }
+            
+            .message-content {
+                max-width: 85%;
+            }
+            
+            .image-message {
+                max-width: 85%;
+            }
         }
     </style>
 </head>
@@ -542,7 +574,7 @@
             `;
             
             targetContainer.appendChild(messageDiv);
-            targetContainer.scrollTop = targetContainer.scrollHeight;
+            scrollToBottom(targetContainer);
         }
 
         function addImageMessage(imageUrl, prompt, targetContainer = imageMessages) {
@@ -555,18 +587,28 @@
             messageDiv.innerHTML = `
                 <div class="image-message">
                     <div class="image-prompt">Generated: "${prompt}"</div>
-                    <img src="${imageUrl}" alt="Generated image" class="generated-image">
+                    <img src="${imageUrl}" alt="Generated image" class="generated-image" onload="scrollToBottom(this.closest('.chat-messages'))">
                     <div class="message-time">${timeString}</div>
                 </div>
             `;
             
             targetContainer.appendChild(messageDiv);
-            targetContainer.scrollTop = targetContainer.scrollHeight;
+            scrollToBottom(targetContainer);
+        }
+
+        function scrollToBottom(container) {
+            // Use setTimeout to ensure the DOM has been updated
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 100);
         }
 
         function showTyping(container = typingIndicator) {
             container.style.display = 'block';
-            container.parentElement.scrollTop = container.parentElement.scrollHeight;
+            const parentContainer = container.parentElement.querySelector('.chat-messages');
+            if (parentContainer) {
+                scrollToBottom(parentContainer);
+            }
         }
 
         function hideTyping(container = typingIndicator) {
