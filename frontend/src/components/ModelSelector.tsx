@@ -6,7 +6,7 @@ interface ModelSelectorProps {
   availableModels: string[];
   imageModels: string[];
   onModelChange: (model: string) => void;
-  onImageModelChange: (imageModel: string) => void;
+  onImageModelChange: (model: string) => void;
 }
 
 export default function ModelSelector({
@@ -19,14 +19,13 @@ export default function ModelSelector({
 }: ModelSelectorProps) {
   return (
     <div className="bg-gray-50 p-4 border-b border-gray-200 flex-shrink-0">
-      <div className="flex items-center gap-4 flex-wrap justify-center">
+      <div className="flex items-center gap-6 flex-wrap justify-center">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Chat Model:</span>
-          <span className="font-medium">{currentModel}</span>
+          <span className="text-sm font-medium text-gray-700">Chat Model:</span>
           <select
             value={currentModel}
             onChange={(e) => onModelChange(e.target.value)}
-            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+            className="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 bg-white text-gray-900"
           >
             {availableModels.map((model) => (
               <option key={model} value={model}>
@@ -34,21 +33,14 @@ export default function ModelSelector({
               </option>
             ))}
           </select>
-          <button
-            onClick={() => onModelChange(currentModel)}
-            className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
-          >
-            Change
-          </button>
         </div>
         
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Image Model:</span>
-          <span className="font-medium">{currentImageModel}</span>
+          <span className="text-sm font-medium text-gray-700">Image Model:</span>
           <select
             value={currentImageModel}
             onChange={(e) => onImageModelChange(e.target.value)}
-            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+            className="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 bg-white text-gray-900"
           >
             {imageModels.map((model) => (
               <option key={model} value={model}>
@@ -56,12 +48,6 @@ export default function ModelSelector({
               </option>
             ))}
           </select>
-          <button
-            onClick={() => onImageModelChange(currentImageModel)}
-            className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
-          >
-            Change
-          </button>
         </div>
       </div>
     </div>

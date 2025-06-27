@@ -24,3 +24,61 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Chat bubbles */
+.chat-bubble-assistant {
+  @apply max-w-[70%] bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3 text-gray-700;
+}
+.chat-bubble-user {
+  @apply max-w-[70%] bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl rounded-br-md px-4 py-3;
+}
+.chat-bubble-image {
+  @apply max-w-[70%] bg-white border border-gray-200 rounded-2xl rounded-bl-md p-4;
+}
+
+/* Timestamp */
+.chat-timestamp-assistant {
+  @apply text-xs mt-2 text-gray-500;
+}
+.chat-timestamp-user {
+  @apply text-xs mt-2 text-blue-100;
+}
+
+/* Typing/generating indicator */
+.typing-indicator {
+  @apply bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3 text-gray-600 flex items-center gap-2;
+}
+
+/* Tab/button border style */
+.tab-button {
+  @apply px-6 py-3 text-sm font-medium border-2 rounded-lg transition-colors flex items-center gap-2;
+}
+.tab-button-active {
+  @apply border-blue-500 text-blue-600 bg-blue-50;
+}
+.tab-button-inactive {
+  @apply border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-50;
+}
+
+/* Configure button style */
+.configure-btn {
+  @apply bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed;
+}
+
+/* Input field styles */
+.chat-input {
+  @apply flex-1 px-4 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:border-blue-500 text-gray-700 placeholder:text-gray-400;
+}
+
+.image-input {
+  @apply w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-gray-700 placeholder:text-gray-400;
+}
+
+.config-input {
+  @apply w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-gray-900 placeholder:text-gray-400;
+}
+
+/* Image prompt text */
+.image-prompt-text {
+  @apply text-sm italic text-gray-600 mb-3;
+}

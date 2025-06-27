@@ -47,14 +47,14 @@ export default function FileUpload({
   };
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex flex-col gap-2 w-full ${className}`}>
       {context === 'image' && (
         <input
           type="text"
           placeholder="Optional prompt for image generation..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm text-gray-700 placeholder:text-gray-400"
           disabled={disabled}
         />
       )}
@@ -72,7 +72,7 @@ export default function FileUpload({
         type="button"
         onClick={handleClick}
         disabled={disabled || isUploading}
-        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2"
+        className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
       >
         {isUploading ? (
           <>

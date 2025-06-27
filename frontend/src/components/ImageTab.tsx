@@ -1,36 +1,30 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Message } from './ChatInterface';
 import FileUpload from './FileUpload';
 
 interface ImageTabProps {
   isConfigured: boolean;
 }
 
+interface ImageMessage {
+  id: string;
+  content: string;
+  imageUrl: string;
+  prompt: string;
+  timestamp: Date;
+  sender: 'user' | 'assistant';
+  type: 'image';
+}
+
 export default function ImageTab({ isConfigured }: ImageTabProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ImageMessage[]>([]);
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState('1024x1024');
   const [quality, setQuality] = useState('standard');
   const [style, setStyle] = useState('vivid');
   const [isGenerating, setIsGenerating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Initialize welcome message on client side to avoid hydration issues
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([
-        {
-          id: '1',
-          content: "Welcome to the image generator! Describe what you'd like to create and I'll generate it for you.",
-          sender: 'assistant',
-          timestamp: new Date(),
-          type: 'text'
-        }
-      ]);
-    }
-  }, []); // Empty dependency array is intentional - we only want this to run once
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,82 +34,116 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
     scrollToBottom();
   }, [messages]);
 
-  const addMessage = (content: string, sender: 'user' | 'assistant', type: 'text' | 'image' = 'text', imageUrl?: string, prompt?: string) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      content,
-      sender,
-      timestamp: new Date(),
-      type,
-      imageUrl,
-      prompt
-    };
-    setMessages(prev => [...prev, newMessage]);
-  };
-
   const handleGenerateImage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim() || !isConfigured) return;
 
+    const userMessage: ImageMessage = {
+      id: Date.now().toString(),
+      content: `Generate image: ${prompt}`,
+      imageUrl: '',
+      prompt: prompt,
+      timestamp: new Date(),
+      sender: 'user',
+      type: 'image'
+    };
+
+    setMessages(prev => [...prev, userMessage]);
     setIsGenerating(true);
-    addMessage(`Generating image: &ldquo;${prompt}&rdquo;`, 'user');
 
     try {
-      const response = await fetch('/api/image', {
+      const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: prompt.trim(),
-          model: 'dall-e-3',
-          size,
-          quality,
-          style
+          prompt: prompt,
+          size: size,
+          quality: quality,
+          style: style
         }),
       });
 
+      if (!response.ok) {
+        throw new Error('Failed to generate image');
+      }
+
       const data = await response.json();
       
-      if (data.error) {
-        addMessage(`Error: ${data.error}`, 'assistant');
-      } else if (data.imageUrls && data.imageUrls.length > 0) {
-        addMessage('Here is your generated image:', 'assistant', 'image', data.imageUrls[0], prompt);
-      } else {
-        addMessage('No image was generated. Please try again.', 'assistant');
-      }
-    } catch {
-      addMessage('Sorry, there was an error generating your image.', 'assistant');
+      const assistantMessage: ImageMessage = {
+        id: (Date.now() + 1).toString(),
+        content: `Generated image for: ${prompt}`,
+        imageUrl: data.imageUrl,
+        prompt: prompt,
+        timestamp: new Date(),
+        sender: 'assistant',
+        type: 'image'
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+      setPrompt('');
+    } catch (error) {
+      console.error('Error generating image:', error);
+      const errorMessage: ImageMessage = {
+        id: (Date.now() + 1).toString(),
+        content: 'Sorry, I encountered an error while generating your image. Please try again.',
+        imageUrl: '',
+        prompt: prompt,
+        timestamp: new Date(),
+        sender: 'assistant',
+        type: 'image'
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsGenerating(false);
-      setPrompt('');
     }
   };
 
-  const handleFileUpload = async (file: File, context: 'chat' | 'image', uploadPrompt?: string) => {
+  const handleFileUpload = async (file: File, context: 'chat' | 'image', prompt?: string) => {
     if (!isConfigured) return;
 
     const formData = new FormData();
     formData.append('file', file);
-    if (uploadPrompt) {
-      formData.append('prompt', uploadPrompt);
+    if (prompt) {
+      formData.append('prompt', prompt);
     }
 
     try {
-      const response = await fetch('/api/upload/image', {
+      const response = await fetch('/api/upload-image', {
         method: 'POST',
         body: formData,
       });
 
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+
       const data = await response.json();
       
-      if (data.error) {
-        addMessage(`Upload error: ${data.error}`, 'assistant');
-      } else {
-        addMessage(`Image &ldquo;${data.fileName}&rdquo; uploaded successfully for generation. ${uploadPrompt ? `Prompt: &ldquo;${uploadPrompt}&rdquo;` : ''}`, 'assistant');
-      }
-    } catch {
-      addMessage('Sorry, there was an error uploading your image.', 'assistant');
+      const userMessage: ImageMessage = {
+        id: Date.now().toString(),
+        content: `Uploaded image: ${file.name}`,
+        imageUrl: data.imageUrl,
+        prompt: prompt || 'Uploaded image',
+        timestamp: new Date(),
+        sender: 'user',
+        type: 'image'
+      };
+
+      setMessages(prev => [...prev, userMessage]);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      const errorMessage: ImageMessage = {
+        id: (Date.now() + 1).toString(),
+        content: 'Sorry, I encountered an error while uploading your image. Please try again.',
+        imageUrl: '',
+        prompt: 'Upload error',
+        timestamp: new Date(),
+        sender: 'assistant',
+        type: 'image'
+      };
+      setMessages(prev => [...prev, errorMessage]);
     }
   };
 
@@ -123,60 +151,36 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
     <div className="flex flex-col h-full">
       <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
         <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.type === 'image' && message.imageUrl ? (
-                <div className="max-w-[70%] bg-white border border-gray-200 rounded-2xl rounded-bl-md p-4">
-                  <div className="text-sm italic text-gray-600 mb-3">
-                    Generated: &ldquo;{message.prompt}&rdquo;
-                  </div>
-                  <img
-                    src={message.imageUrl}
-                    alt="Generated image"
-                    className="w-full rounded-lg shadow-md"
-                    onLoad={scrollToBottom}
-                  />
-                  <div className="text-xs text-gray-500 mt-2">
-                    {message.timestamp.toLocaleTimeString('en-US', { 
-                      hour: '2-digit', 
-                      minute: '2-digit',
-                      hour12: false 
-                    })}
-                  </div>
+          {messages.map((message, index) => (
+            <div key={`${message.sender}-${index}-${message.timestamp.getTime()}`} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className="chat-bubble-image">
+                <div className="image-prompt-text">
+                  Generated: &ldquo;{message.prompt}&rdquo;
                 </div>
-              ) : (
-                <div className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                  message.sender === 'user' 
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-md' 
-                    : 'bg-white border border-gray-200 rounded-bl-md'
-                }`}>
-                  <div className="whitespace-pre-wrap">{message.content}</div>
-                  <div className={`text-xs mt-2 ${
-                    message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
-                    {message.timestamp.toLocaleTimeString('en-US', { 
-                      hour: '2-digit', 
-                      minute: '2-digit',
-                      hour12: false 
-                    })}
-                  </div>
+                <img
+                  src={message.imageUrl}
+                  alt="Generated image"
+                  className="w-full rounded-lg shadow-md"
+                  onLoad={scrollToBottom}
+                />
+                <div className="chat-timestamp-assistant">
+                  {message.timestamp.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                  })}
                 </div>
-              )}
+              </div>
             </div>
           ))}
           
           {isGenerating && (
             <div className="flex justify-start">
-              <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <span className="text-sm text-gray-600 ml-2">Generating image...</span>
-                </div>
+              <div className="typing-indicator">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <span className="text-sm text-gray-600 ml-2">Generating image...</span>
               </div>
             </div>
           )}
@@ -193,7 +197,7 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               disabled={!isConfigured}
-              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:border-blue-500"
+              className="image-input"
             />
             <button
               type="submit"
@@ -211,7 +215,7 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
               value={size}
               onChange={(e) => setSize(e.target.value)}
               disabled={!isConfigured}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm text-gray-700"
             >
               <option value="1024x1024">1024x1024</option>
               <option value="1792x1024">1792x1024</option>
@@ -222,7 +226,7 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
               value={quality}
               onChange={(e) => setQuality(e.target.value)}
               disabled={!isConfigured}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm text-gray-700"
             >
               <option value="standard">Standard</option>
               <option value="hd">HD</option>
@@ -232,7 +236,7 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
               value={style}
               onChange={(e) => setStyle(e.target.value)}
               disabled={!isConfigured}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm text-gray-700"
             >
               <option value="vivid">Vivid</option>
               <option value="natural">Natural</option>
