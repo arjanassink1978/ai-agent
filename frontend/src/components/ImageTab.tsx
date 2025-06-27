@@ -8,21 +8,28 @@ interface ImageTabProps {
 }
 
 export default function ImageTab({ isConfigured }: ImageTabProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: "Welcome to the image generator! Describe what you'd like to create and I'll generate it for you.",
-      sender: 'assistant',
-      timestamp: new Date(),
-      type: 'text'
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState('1024x1024');
   const [quality, setQuality] = useState('standard');
   const [style, setStyle] = useState('vivid');
   const [isGenerating, setIsGenerating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize welcome message on client side to avoid hydration issues
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([
+        {
+          id: '1',
+          content: "Welcome to the image generator! Describe what you'd like to create and I'll generate it for you.",
+          sender: 'assistant',
+          timestamp: new Date(),
+          type: 'text'
+        }
+      ]);
+    }
+  }, []); // Empty dependency array is intentional - we only want this to run once
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -113,7 +120,11 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
                     onLoad={scrollToBottom}
                   />
                   <div className="text-xs text-gray-500 mt-2">
-                    {message.timestamp.toLocaleTimeString()}
+                    {message.timestamp.toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: false 
+                    })}
                   </div>
                 </div>
               ) : (
@@ -128,7 +139,11 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
                   <div className={`text-xs mt-2 ${
                     message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
                   }`}>
-                    {message.timestamp.toLocaleTimeString()}
+                    {message.timestamp.toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: false 
+                    })}
                   </div>
                 </div>
               )}

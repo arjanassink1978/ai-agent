@@ -8,18 +8,25 @@ interface ChatTabProps {
 }
 
 export default function ChatTab({ isConfigured }: ChatTabProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: "Hello! I'm your AI assistant. How can I help you today?",
-      sender: 'assistant',
-      timestamp: new Date(),
-      type: 'text'
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize welcome message on client side to avoid hydration issues
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([
+        {
+          id: '1',
+          content: "Hello! I'm your AI assistant. How can I help you today?",
+          sender: 'assistant',
+          timestamp: new Date(),
+          type: 'text'
+        }
+      ]);
+    }
+  }, []); // Empty dependency array is intentional - we only want this to run once
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -102,7 +109,11 @@ export default function ChatTab({ isConfigured }: ChatTabProps) {
                 <div className={`text-xs mt-2 ${
                   message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
                 }`}>
-                  {message.timestamp.toLocaleTimeString()}
+                  {message.timestamp.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                  })}
                 </div>
               </div>
             </div>
