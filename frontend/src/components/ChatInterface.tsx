@@ -55,7 +55,6 @@ export default function ChatInterface() {
       if (response.ok) {
         setConfig(newConfig);
         setIsConfigured(true);
-        alert('Configuration successful!');
       } else {
         const error = await response.text();
         alert(`Configuration failed: ${error}`);
