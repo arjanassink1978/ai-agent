@@ -71,8 +71,8 @@ You can customize the application by modifying `src/main/resources/application.p
 # Server port (default: 8080)
 server.port=8080
 
-# OpenAI model to use (default: gpt-3.5-turbo)
-openai.model=gpt-3.5-turbo
+# OpenAI model to use (default: gpt-4)
+openai.model=gpt-4
 
 # API key (can also be set via environment variable)
 openai.api.key=${OPENAI_API_KEY:}

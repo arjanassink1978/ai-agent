@@ -15,7 +15,7 @@ public class AiService {
     @Value("${openai.api.key:}")
     private String apiKey;
 
-    @Value("${openai.model:gpt-3.5-turbo}")
+    @Value("${openai.model:gpt-4}")
     private String model;
 
     private OpenAiService openAiService;
@@ -42,7 +42,7 @@ public class AiService {
             ChatCompletionRequest request = ChatCompletionRequest.builder()
                     .model(model)
                     .messages(List.of(message))
-                    .maxTokens(500)
+                    .maxTokens(1000)
                     .temperature(0.7)
                     .build();
 
