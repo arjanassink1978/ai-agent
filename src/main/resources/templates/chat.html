@@ -251,8 +251,8 @@
         <div class="config-section" th:if="${!isConfigured}">
             <form class="config-form" id="configForm">
                 <input type="password" class="config-input" id="apiKey" placeholder="Enter your OpenAI API key" required>
-                <select class="config-select" id="modelSelect" th:each="model : ${availableModels}">
-                    <option th:value="${model}" th:text="${model}" th:selected="${model == currentModel}"></option>
+                <select class="config-select" id="modelSelect">
+                    <option th:each="model : ${availableModels}" th:value="${model}" th:text="${model}" th:selected="${model == currentModel}"></option>
                 </select>
                 <button type="submit" class="config-button">Configure</button>
             </form>
@@ -261,8 +261,8 @@
         <div class="model-info" th:if="${isConfigured}">
             <div class="model-selector">
                 <span>Current Model: <strong th:text="${currentModel}">gpt-4</strong></span>
-                <select id="modelChangeSelect" th:each="model : ${availableModels}">
-                    <option th:value="${model}" th:text="${model}" th:selected="${model == currentModel}"></option>
+                <select id="modelChangeSelect">
+                    <option th:each="model : ${availableModels}" th:value="${model}" th:text="${model}" th:selected="${model == currentModel}"></option>
                 </select>
                 <button onclick="changeModel()">Change Model</button>
             </div>
