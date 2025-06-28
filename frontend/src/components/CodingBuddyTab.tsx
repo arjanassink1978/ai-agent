@@ -1,21 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types/chat';
+import { Repository } from '../types/repository';
+import RepositorySelector from './RepositorySelector';
 
 interface CodingBuddyTabProps {
   isConfigured: boolean;
-}
-
-interface Repository {
-  name: string;
-  full_name: string;
-  description: string;
-  private: boolean;
-  html_url: string;
-  clone_url: string;
-  language: string;
-  updated_at: string;
 }
 
 export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
@@ -90,7 +81,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
           model: 'gpt-4',
           metadata: {
             personalAccessToken,
-            repositoryUrl: selectedRepository.html_url,
+            repositoryUrl: selectedRepository.url || selectedRepository.html_url,
             selectedFiles: selectedFiles.length > 0 ? selectedFiles : null
           }
         })
@@ -177,20 +168,42 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
   };
 
   const connectToRepository = async (repo: Repository) => {
-    console.log('Connecting to repository:', repo.full_name);
+    console.log('Connecting to repository:', repo);
+    console.log('Repository full_name:', repo.full_name);
+    console.log('Repository url:', repo.url);
+    console.log('Repository html_url:', repo.html_url);
+    console.log('Repository url type:', typeof repo.url);
+    console.log('Repository html_url type:', typeof repo.html_url);
+    console.log('Personal Access Token length:', personalAccessToken?.length);
     setConnectionStatus('connecting');
     setSelectedRepository(repo);
 
+    // Use url field from MCP server, fallback to html_url
+    const repositoryUrl = repo.url || repo.html_url;
+    
+    if (!repositoryUrl) {
+      console.error('No repository URL found in repository object');
+      setConnectionStatus('error');
+      addMessage('Error: No repository URL found. Please try again.', 'assistant');
+      return;
+    }
+
     try {
+      const requestBody = { 
+        personalAccessToken, 
+        repositoryUrl: repositoryUrl
+      };
+      console.log('Request body being sent:', JSON.stringify(requestBody, null, 2));
+      console.log('Request body keys:', Object.keys(requestBody));
+      console.log('Request body repositoryUrl value:', requestBody.repositoryUrl);
+      console.log('Request body repositoryUrl type:', typeof requestBody.repositoryUrl);
+      
       const response = await fetch('/api/connect-repository', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          personalAccessToken, 
-          repositoryUrl: repo.html_url 
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       console.log('Response status:', response.status);
@@ -265,7 +278,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
           model: 'gpt-4',
           metadata: {
             personalAccessToken,
-            repositoryUrl: selectedRepository?.html_url,
+            repositoryUrl: selectedRepository?.url || selectedRepository?.html_url,
             selectedFiles
           }
         })
@@ -372,51 +385,31 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
               )}
               
               {repositories.length > 0 ? (
-                <div className="max-h-96 overflow-y-auto space-y-2 border border-gray-200 rounded-md p-2">
-                  {repositories.map((repo) => (
-                    <div
-                      key={repo.full_name}
-                      className={`border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        connectionStatus === 'connecting' && selectedRepository?.full_name === repo.full_name 
-                          ? 'bg-blue-50 border-blue-300' 
-                          : ''
-                      }`}
-                      onClick={() => connectToRepository(repo)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{repo.name}</h4>
-                          <p className="text-sm text-gray-600">{repo.description || 'No description'}</p>
-                          <div className="flex items-center space-x-4 mt-1">
-                            <span className="text-xs text-gray-500">{repo.language || 'Unknown'}</span>
-                            <span className="text-xs text-gray-500">
-                              {repo.private ? 'Private' : 'Public'}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              Updated {new Date(repo.updated_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            connectToRepository(repo);
-                          }}
-                          disabled={connectionStatus === 'connecting'}
-                          className={`li-btn ml-2 ${
-                            connectionStatus === 'connecting' && selectedRepository?.full_name === repo.full_name 
-                              ? 'opacity-50 cursor-not-allowed' 
-                              : ''
-                          }`}
-                        >
-                          {connectionStatus === 'connecting' && selectedRepository?.full_name === repo.full_name 
-                            ? 'Connecting...' 
-                            : 'Connect'
-                          }
-                        </button>
+                <div className="space-y-4">
+                  <RepositorySelector
+                    repositories={repositories}
+                    selectedRepository={selectedRepository}
+                    onRepositoryChange={(repo) => {
+                      setSelectedRepository(repo);
+                      if (repo) {
+                        connectToRepository(repo);
+                      }
+                    }}
+                    disabled={connectionStatus === 'connecting'}
+                    placeholder="Choose a repository to connect..."
+                  />
+                  
+                  {selectedRepository && (
+                    <div className="bg-gray-50 p-3 rounded-md">
+                      <h4 className="font-medium text-gray-900 mb-1">{selectedRepository.name}</h4>
+                      <p className="text-sm text-gray-600 mb-2">{selectedRepository.description || 'No description'}</p>
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <span>{selectedRepository.language || 'Unknown'}</span>
+                        <span>{selectedRepository.private ? 'Private' : 'Public'}</span>
+                        <span>Updated {new Date(selectedRepository.updated_at).toLocaleDateString()}</span>
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               ) : (
                 <div className="text-center text-gray-600 py-4">
