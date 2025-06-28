@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatMessage } from '../types/chat';
+import { useSession } from '../hooks/useSession';
 
 interface CodingBuddyTabProps {
   isConfigured: boolean;
@@ -19,6 +20,8 @@ interface Repository {
 }
 
 export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
+  const { sessionData, isLoading: sessionLoading, saveGithubToken, saveGithubUser, saveSelectedRepository, saveRepositories } = useSession();
+  
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [personalAccessToken, setPersonalAccessToken] = useState('');
@@ -28,27 +31,122 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
   const [selectedRepository, setSelectedRepository] = useState<Repository | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [availableFiles, setAvailableFiles] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [userInfo, setUserInfo] = useState<{ username: string; name: string } | null>(null);
   const [authError, setAuthError] = useState('');
-  const [userInfo, setUserInfo] = useState<{username: string, name: string} | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize welcome message on client side to avoid hydration issues
+  // Load persisted state from session data when it becomes available
   useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([
-        {
-          id: '1',
-          content: "Hello! I'm your Coding Buddy. Enter your GitHub Personal Access Token to get started. I'll help you with best practices, code reviews, refactoring suggestions, and development tasks.",
-          sender: 'assistant',
-          timestamp: new Date(),
-          type: 'text'
+    if (sessionData) {
+      try {
+        // Load GitHub token
+        if (sessionData.githubToken) {
+          setPersonalAccessToken(sessionData.githubToken);
         }
-      ]);
+
+        // Load user info and set authentication state
+        if (sessionData.githubUsername && sessionData.githubDisplayName) {
+          setUserInfo({
+            username: sessionData.githubUsername,
+            name: sessionData.githubDisplayName
+          });
+          setIsAuthenticated(true);
+        }
+
+        // Load repositories first
+        if (sessionData.repositories) {
+          setRepositories(sessionData.repositories as Repository[]);
+        }
+
+        // Initialize with welcome message if no messages exist
+        if (messages.length === 0) {
+          setMessages([
+            {
+              id: '1',
+              content: "Hello! I'm your AI Coding Buddy with full GitHub integration. Enter your GitHub Personal Access Token to get started.\n\nI can help you with:\n• Creating issues and pull requests\n• Searching and analyzing code\n• Managing branches and commits\n• Code reviews and refactoring\n• And much more!\n\nJust tell me what you want to do in natural language, like:\n• \"Create an issue about the slow performance\"\n• \"Make a pull request for the new feature\"\n• \"Search for all API endpoints\"\n• \"Create a new branch for bug fixes\"",
+              sender: 'assistant',
+              timestamp: new Date(),
+              type: 'text'
+            }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error loading session data:', error);
+        // Fallback to welcome message if loading fails
+        setMessages([
+          {
+            id: '1',
+            content: "Hello! I'm your AI Coding Buddy with full GitHub integration. Enter your GitHub Personal Access Token to get started.\n\nI can help you with:\n• Creating issues and pull requests\n• Searching and analyzing code\n• Managing branches and commits\n• Code reviews and refactoring\n• And much more!\n\nJust tell me what you want to do in natural language, like:\n• \"Create an issue about the slow performance\"\n• \"Make a pull request for the new feature\"\n• \"Search for all API endpoints\"\n• \"Create a new branch for bug fixes\"",
+            sender: 'assistant',
+            timestamp: new Date(),
+            type: 'text'
+          }
+        ]);
+      }
     }
-  }, []); // Empty dependency array is intentional - we only want this to run once
+  }, [sessionData, messages.length]);
+
+  // Ensure authentication state is properly set when we have token and user info
+  useEffect(() => {
+    if (personalAccessToken && userInfo && !isAuthenticated) {
+      setIsAuthenticated(true);
+    }
+  }, [personalAccessToken, userInfo, isAuthenticated]);
+
+  // Load selected repository after repositories are loaded and set connection state
+  useEffect(() => {
+    if (sessionData?.selectedRepository && repositories.length > 0) {
+      const repo = repositories.find(r => r.full_name === sessionData.selectedRepository);
+      if (repo) {
+        setSelectedRepository(repo);
+        setIsConnected(true);
+        setConnectionStatus('connected');
+        
+        // Add a message indicating successful reconnection if we have user info
+        if (userInfo && messages.length === 1) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: '2',
+              content: `Welcome back! You're connected to ${repo.full_name} as ${userInfo.name} (@${userInfo.username}).\n\nI'm ready to help you with your coding tasks. Just tell me what you want to do!`,
+              sender: 'assistant',
+              timestamp: new Date(),
+              type: 'text'
+            }
+          ]);
+        }
+      }
+    }
+  }, [sessionData?.selectedRepository, repositories, userInfo, messages.length]);
+
+  // Save GitHub token to session when it changes
+  useEffect(() => {
+    if (personalAccessToken && sessionData?.sessionId) {
+      saveGithubToken(personalAccessToken);
+    }
+  }, [personalAccessToken, sessionData?.sessionId, saveGithubToken]);
+
+  // Save user info to session when it changes
+  useEffect(() => {
+    if (userInfo && sessionData?.sessionId) {
+      saveGithubUser(userInfo.username, userInfo.name);
+    }
+  }, [userInfo, sessionData?.sessionId, saveGithubUser]);
+
+  // Save selected repository to session when it changes
+  useEffect(() => {
+    if (selectedRepository && sessionData?.sessionId) {
+      saveSelectedRepository(selectedRepository.full_name);
+    }
+  }, [selectedRepository, sessionData?.sessionId, saveSelectedRepository]);
+
+  // Save repositories to session when they change
+  useEffect(() => {
+    if (repositories.length > 0 && sessionData?.sessionId) {
+      saveRepositories(repositories);
+    }
+  }, [repositories, sessionData?.sessionId, saveRepositories]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,25 +178,32 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/coding-chat', {
+      const response = await fetch('/api/agent/coding-buddy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           message: userMessage,
-          model: 'gpt-4',
-          metadata: {
-            personalAccessToken,
-            repositoryUrl: selectedRepository.html_url,
-            selectedFiles: selectedFiles.length > 0 ? selectedFiles : null
-          }
+          username: userInfo?.username || '',
+          repository: selectedRepository.full_name,
+          personalAccessToken: personalAccessToken
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        addMessage(data.message, 'assistant');
+        if (data.success) {
+          addMessage(data.message, 'assistant');
+          
+          // Add links if available
+          if (data.links && data.links.length > 0) {
+            const linksMessage = data.links.map((link: string) => `🔗 ${link}`).join('\n');
+            addMessage(linksMessage, 'assistant');
+          }
+        } else {
+          addMessage(data.message || 'Sorry, I encountered an error. Please try again.', 'assistant');
+        }
       } else {
         addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
       }
@@ -138,6 +243,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
           name: data.name
         });
         addMessage(`Successfully authenticated as ${data.name} (@${data.username})`, 'assistant');
+        console.log('Authentication successful, fetching repositories...');
         await fetchUserRepositories();
       } else {
         setAuthError(data.error || 'Authentication failed');
@@ -152,7 +258,8 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
     }
   };
 
-  const fetchUserRepositories = async () => {
+  const fetchUserRepositories = useCallback(async () => {
+    console.log('Fetching user repositories...');
     try {
       const response = await fetch('/api/github/repositories', {
         method: 'POST',
@@ -163,9 +270,11 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
       });
 
       const data = await response.json();
+      console.log('Repository fetch response:', data);
 
       if (data.success) {
         setRepositories(data.repositories || []);
+        console.log('Repositories set:', data.repositories?.length || 0);
         addMessage(`Found ${data.repositories?.length || 0} repositories. Select one to connect.`, 'assistant');
       } else {
         addMessage('Failed to fetch repositories: ' + (data.error || 'Unknown error'), 'assistant');
@@ -174,10 +283,17 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
       console.error('Error fetching repositories:', error);
       addMessage('Failed to fetch repositories. Please try again.', 'assistant');
     }
-  };
+  }, [personalAccessToken, addMessage]);
+
+  // Fallback: If we have authentication but no repositories, fetch them
+  useEffect(() => {
+    if (isAuthenticated && userInfo && personalAccessToken && repositories.length === 0 && !sessionLoading) {
+      console.log('Fetching repositories as fallback...');
+      fetchUserRepositories();
+    }
+  }, [isAuthenticated, userInfo, personalAccessToken, repositories.length, sessionLoading, fetchUserRepositories]);
 
   const connectToRepository = async (repo: Repository) => {
-    console.log('Connecting to repository:', repo.full_name);
     setConnectionStatus('connecting');
     setSelectedRepository(repo);
 
@@ -193,17 +309,13 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
         }),
       });
 
-      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', data);
 
       if (data.success) {
         setIsConnected(true);
         setConnectionStatus('connected');
-        setAvailableFiles(data.files || []);
-        
         addMessage(
-          `Connected to repository: ${repo.full_name}. I'm your coding buddy and I'll help you with best practices, code reviews, refactoring suggestions, and development tasks. I have access to the codebase context and can analyze files, suggest improvements, and help with debugging.`,
+          `Connected to repository: ${repo.full_name}. I'm your AI coding buddy with full GitHub integration!\n\nI can now help you with:\n• Creating issues and pull requests\n• Searching and analyzing code\n• Managing branches and commits\n• Code reviews and refactoring\n• And much more!\n\nJust tell me what you want to do in natural language. For example:\n• \"Create an issue about the slow performance\"\n• \"Make a pull request for the new feature\"\n• \"Search for all API endpoints\"\n• \"Create a new branch for bug fixes\"`,
           'assistant'
         );
       } else {
@@ -221,8 +333,10 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
     setIsConnected(false);
     setConnectionStatus('idle');
     setSelectedRepository(null);
-    setSelectedFiles([]);
-    setAvailableFiles([]);
+    // Clear repository-related session data
+    if (sessionData?.sessionId) {
+      saveSelectedRepository('');
+    }
     addMessage('Disconnected from repository. Select a new repository to continue.', 'assistant');
   };
 
@@ -230,63 +344,18 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
     setIsAuthenticated(false);
     setIsConnected(false);
     setConnectionStatus('idle');
-    setSelectedRepository(null);
-    setSelectedFiles([]);
-    setAvailableFiles([]);
     setRepositories([]);
-    setAuthError('');
+    setSelectedRepository(null);
     setUserInfo(null);
-    addMessage('Logged out. Authenticate again to continue.', 'assistant');
-  };
-
-  const selectFile = (filePath: string) => {
-    setSelectedFiles(prev => 
-      prev.includes(filePath) 
-        ? prev.filter(f => f !== filePath)
-        : [...prev, filePath]
-    );
-  };
-
-  const analyzeSelectedFiles = () => {
-    if (selectedFiles.length > 0) {
-      const message = `Please analyze these files and provide insights: ${selectedFiles.join(', ')}`;
-      addMessage(message, 'user');
-      setInputMessage('');
-      setIsLoading(true);
-
-      // Simulate the same API call as handleSendMessage
-      fetch('/api/coding-chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message,
-          model: 'gpt-4',
-          metadata: {
-            personalAccessToken,
-            repositoryUrl: selectedRepository?.html_url,
-            selectedFiles
-          }
-        })
-      })
-      .then(response => {
-        if (response.ok) {
-          return response.json();
-        }
-        throw new Error('Failed to analyze files');
-      })
-      .then(data => {
-        addMessage(data.message, 'assistant');
-      })
-      .catch(error => {
-        console.error('Error analyzing files:', error);
-        addMessage('Sorry, I encountered an error analyzing the files.', 'assistant');
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+    setPersonalAccessToken('');
+    // Clear all session data
+    if (sessionData?.sessionId) {
+      saveGithubToken('');
+      saveGithubUser('', '');
+      saveSelectedRepository('');
+      saveRepositories([]);
     }
+    addMessage('Logged out. Authenticate again to continue.', 'assistant');
   };
 
   if (!isConfigured) {
@@ -301,25 +370,41 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
     );
   }
 
+  // Show loading state while session is being loaded
+  if (sessionLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading your session...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full max-h-screen">
+    <div className="flex flex-col h-full">
       {/* GitHub Authentication Section */}
       {!isAuthenticated ? (
-        <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
+        <div className="bg-white border-b border-gray-200 p-6 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">GitHub Authentication</h3>
           <div className="space-y-4">
-            <div className="mb-6">
-              <label htmlFor="github-token" className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Personal Access Token
               </label>
               <input
                 type="password"
-                id="github-token"
                 value={personalAccessToken}
                 onChange={(e) => setPersonalAccessToken(e.target.value)}
                 placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="config-input"
                 disabled={isConnecting}
+                autoComplete="off"
               />
               <p className="mt-1 text-xs text-gray-500">
                 Enter your GitHub Personal Access Token to connect to repositories
@@ -342,7 +427,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
         <>
           {/* Repository Selection Section */}
           {!isConnected ? (
-            <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
+            <div className="bg-white border-b border-gray-200 p-6 flex-shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Select Repository</h3>
                 <div className="flex items-center space-x-2">
@@ -372,51 +457,53 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
               )}
               
               {repositories.length > 0 ? (
-                <div className="max-h-96 overflow-y-auto space-y-2 border border-gray-200 rounded-md p-2">
-                  {repositories.map((repo) => (
-                    <div
-                      key={repo.full_name}
-                      className={`border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        connectionStatus === 'connecting' && selectedRepository?.full_name === repo.full_name 
-                          ? 'bg-blue-50 border-blue-300' 
-                          : ''
-                      }`}
-                      onClick={() => connectToRepository(repo)}
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600 mb-2">
+                    Found {repositories.length} repositories
+                  </div>
+                  <div>
+                    <label htmlFor="repository-select" className="block text-sm font-medium text-gray-700 mb-2">
+                      Choose Repository
+                    </label>
+                    <select
+                      id="repository-select"
+                      value={selectedRepository?.full_name || ''}
+                      onChange={(e) => {
+                        const selectedRepo = repositories.find(repo => repo.full_name === e.target.value);
+                        if (selectedRepo) {
+                          connectToRepository(selectedRepo);
+                        }
+                      }}
+                      disabled={connectionStatus === 'connecting'}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{repo.name}</h4>
-                          <p className="text-sm text-gray-600">{repo.description || 'No description'}</p>
-                          <div className="flex items-center space-x-4 mt-1">
-                            <span className="text-xs text-gray-500">{repo.language || 'Unknown'}</span>
-                            <span className="text-xs text-gray-500">
-                              {repo.private ? 'Private' : 'Public'}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              Updated {new Date(repo.updated_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            connectToRepository(repo);
-                          }}
-                          disabled={connectionStatus === 'connecting'}
-                          className={`li-btn ml-2 ${
-                            connectionStatus === 'connecting' && selectedRepository?.full_name === repo.full_name 
-                              ? 'opacity-50 cursor-not-allowed' 
-                              : ''
-                          }`}
-                        >
-                          {connectionStatus === 'connecting' && selectedRepository?.full_name === repo.full_name 
-                            ? 'Connecting...' 
-                            : 'Connect'
-                          }
-                        </button>
+                      <option value="">Select a repository...</option>
+                      {repositories.map((repo) => (
+                        <option key={repo.full_name} value={repo.full_name}>
+                          {repo.name} {repo.private ? '(Private)' : '(Public)'} - {repo.language || 'Unknown'}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Select a repository to automatically connect and start coding
+                    </p>
+                  </div>
+                  
+                  {selectedRepository && (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
+                      <h4 className="font-medium text-gray-900">{selectedRepository.name}</h4>
+                      <p className="text-sm text-gray-600">{selectedRepository.description || 'No description'}</p>
+                      <div className="flex items-center space-x-4 mt-1">
+                        <span className="text-xs text-gray-500">{selectedRepository.language || 'Unknown'}</span>
+                        <span className="text-xs text-gray-500">
+                          {selectedRepository.private ? 'Private' : 'Public'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Updated {new Date(selectedRepository.updated_at).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               ) : (
                 <div className="text-center text-gray-600 py-4">
@@ -426,7 +513,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
             </div>
           ) : (
             /* Connected Repository Section */
-            <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
+            <div className="bg-white border-b border-gray-200 p-6 flex-shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Connected Repository</h3>
                 <div className="flex items-center space-x-2">
@@ -448,39 +535,11 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
               </div>
             </div>
           )}
-
-          {/* File Selection Section */}
-          {isConnected && availableFiles.length > 0 && (
-            <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
-              <h4 className="text-md font-semibold text-gray-900 mb-3">Select Files to Analyze</h4>
-              <div className="max-h-48 overflow-y-auto space-y-2 border border-gray-200 rounded-md p-2">
-                {availableFiles.map((file) => (
-                  <label key={file} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                    <input
-                      type="checkbox"
-                      checked={selectedFiles.includes(file)}
-                      onChange={() => selectFile(file)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 truncate">{file}</span>
-                  </label>
-                ))}
-              </div>
-              {selectedFiles.length > 0 && (
-                <button
-                  onClick={analyzeSelectedFiles}
-                  className="li-btn mt-3 w-full"
-                >
-                  Analyze Selected Files ({selectedFiles.length})
-                </button>
-              )}
-            </div>
-          )}
         </>
       )}
 
       {/* Chat Messages */}
-      <div className="flex-1 p-6 overflow-y-auto bg-gray-50" style={{ minHeight: '300px', maxHeight: 'calc(100vh - 400px)' }}>
+      <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
         <div className="space-y-4">
           {messages.map((message, index) => (
             <div key={`${message.sender}-${index}-${message.timestamp.getTime()}`} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -515,7 +574,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
         <form onSubmit={handleSendMessage} className="flex gap-3">
           <input
             type="text"
-            placeholder={isConnected ? "Ask your coding buddy for help, code reviews, refactoring suggestions, or any development questions..." : "Enter your GitHub Personal Access Token to start chatting with your coding buddy"}
+            placeholder={isConnected ? "Tell me what you want to do! Examples: 'Create an issue about slow performance', 'Make a PR for the new feature', 'Search for API endpoints', 'Create a branch for bug fixes'..." : "Enter your GitHub Personal Access Token to start chatting with your coding buddy"}
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             disabled={!isConfigured || !isConnected || isLoading}

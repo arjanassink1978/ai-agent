@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession } from '../hooks/useSession';
 
 interface ConfigSectionProps {
   onSubmit: (config: { apiKey: string; model: string; imageModel: string }) => void;
@@ -9,10 +10,34 @@ interface ConfigSectionProps {
 }
 
 export default function ConfigSection({ onSubmit, availableModels, currentConfig }: ConfigSectionProps) {
+  const { sessionData, saveOpenAIConfig } = useSession();
+  
   const [apiKey, setApiKey] = useState(currentConfig?.apiKey || '');
   const [model, setModel] = useState(currentConfig?.model || availableModels[0] || 'gpt-4o');
   const [imageModel, setImageModel] = useState(currentConfig?.imageModel || 'dall-e-3');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Load persisted config from session data when it becomes available
+  useEffect(() => {
+    if (sessionData) {
+      if (sessionData.openaiApiKey && !currentConfig?.apiKey) {
+        setApiKey(sessionData.openaiApiKey);
+      }
+      if (sessionData.chatModel && !currentConfig?.model) {
+        setModel(sessionData.chatModel);
+      }
+      if (sessionData.imageModel && !currentConfig?.imageModel) {
+        setImageModel(sessionData.imageModel);
+      }
+    }
+  }, [sessionData, currentConfig]);
+
+  // Save config to session when it changes
+  useEffect(() => {
+    if (apiKey && sessionData?.sessionId) {
+      saveOpenAIConfig(apiKey, model, imageModel);
+    }
+  }, [apiKey, model, imageModel, sessionData?.sessionId, saveOpenAIConfig]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

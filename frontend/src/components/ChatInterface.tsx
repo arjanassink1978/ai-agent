@@ -100,7 +100,7 @@ export default function ChatInterface() {
           setIsConfigured(false);
           console.log('API key not configured');
         }
-      } catch (testError) {
+      } catch {
         console.log('Test call failed, assuming API key not configured');
         setIsConfigured(false);
       }
@@ -190,7 +190,7 @@ export default function ChatInterface() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-screen flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 text-center text-2xl font-bold flex-shrink-0">
         <div className="flex items-center justify-center gap-3">
@@ -262,7 +262,7 @@ export default function ChatInterface() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {activeTab === 'chat' && (
           <ChatTab isConfigured={isConfigured} />
         )}

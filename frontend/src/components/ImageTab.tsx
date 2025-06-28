@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import FileUpload from './FileUpload';
+import { useSession } from '../hooks/useSession';
 
 interface ImageTabProps {
   isConfigured: boolean;
@@ -18,6 +19,7 @@ interface ImageMessage {
 }
 
 export default function ImageTab({ isConfigured }: ImageTabProps) {
+  const { sessionData } = useSession();
   const [messages, setMessages] = useState<ImageMessage[]>([]);
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState('1024x1024');
@@ -25,6 +27,92 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
   const [style, setStyle] = useState('vivid');
   const [isGenerating, setIsGenerating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load persisted state from session data when it becomes available
+  useEffect(() => {
+    if (sessionData) {
+      try {
+        // For now, we'll keep image messages and settings in localStorage since they're more frequent
+        // and we don't want to overload the database with every message
+        const savedMessages = localStorage.getItem('image-tab-messages');
+        if (savedMessages) {
+          const parsedMessages = JSON.parse(savedMessages);
+          // Convert timestamp strings back to Date objects
+          const messagesWithDates = parsedMessages.map((msg: { timestamp: string; [key: string]: unknown }) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }));
+          setMessages(messagesWithDates);
+        }
+
+        // Load form settings
+        const savedPrompt = localStorage.getItem('image-tab-prompt');
+        if (savedPrompt) {
+          setPrompt(savedPrompt);
+        }
+
+        const savedSize = localStorage.getItem('image-tab-size');
+        if (savedSize) {
+          setSize(savedSize);
+        }
+
+        const savedQuality = localStorage.getItem('image-tab-quality');
+        if (savedQuality) {
+          setQuality(savedQuality);
+        }
+
+        const savedStyle = localStorage.getItem('image-tab-style');
+        if (savedStyle) {
+          setStyle(savedStyle);
+        }
+      } catch (error) {
+        console.error('Error loading image tab state:', error);
+      }
+    }
+  }, [sessionData]); // Run when session data becomes available
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      if (messages.length > 0) {
+        localStorage.setItem('image-tab-messages', JSON.stringify(messages));
+      }
+    } catch (error) {
+      console.error('Error saving image messages:', error);
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('image-tab-prompt', prompt);
+    } catch (error) {
+      console.error('Error saving prompt:', error);
+    }
+  }, [prompt]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('image-tab-size', size);
+    } catch (error) {
+      console.error('Error saving size:', error);
+    }
+  }, [size]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('image-tab-quality', quality);
+    } catch (error) {
+      console.error('Error saving quality:', error);
+    }
+  }, [quality]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('image-tab-style', style);
+    } catch (error) {
+      console.error('Error saving style:', error);
+    }
+  }, [style]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

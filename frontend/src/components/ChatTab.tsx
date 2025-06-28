@@ -3,31 +3,72 @@
 import { useState, useRef, useEffect } from 'react';
 import { Message } from './ChatInterface';
 import FileUpload from './FileUpload';
+import { useSession } from '../hooks/useSession';
 
 interface ChatTabProps {
   isConfigured: boolean;
 }
 
 export default function ChatTab({ isConfigured }: ChatTabProps) {
+  const { sessionData } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize welcome message on client side to avoid hydration issues
+  // Load persisted messages from session data when it becomes available
   useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([
-        {
-          id: '1',
-          content: "Hello! I'm your AI assistant. How can I help you today?",
-          sender: 'assistant',
-          timestamp: new Date(),
-          type: 'text'
+    if (sessionData) {
+      try {
+        // For now, we'll keep chat messages in localStorage since they're more frequent
+        // and we don't want to overload the database with every message
+        const savedMessages = localStorage.getItem('chat-tab-messages');
+        if (savedMessages) {
+          const parsedMessages = JSON.parse(savedMessages);
+          // Convert timestamp strings back to Date objects
+          const messagesWithDates = parsedMessages.map((msg: { timestamp: string; [key: string]: unknown }) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }));
+          setMessages(messagesWithDates);
+        } else {
+          // Initialize with welcome message if no saved messages
+          setMessages([
+            {
+              id: '1',
+              content: "Hello! I'm your AI assistant. How can I help you today?",
+              sender: 'assistant',
+              timestamp: new Date(),
+              type: 'text'
+            }
+          ]);
         }
-      ]);
+      } catch (error) {
+        console.error('Error loading chat messages:', error);
+        // Fallback to welcome message if loading fails
+        setMessages([
+          {
+            id: '1',
+            content: "Hello! I'm your AI assistant. How can I help you today?",
+            sender: 'assistant',
+            timestamp: new Date(),
+            type: 'text'
+          }
+        ]);
+      }
     }
-  }, []); // Empty dependency array is intentional - we only want this to run once
+  }, [sessionData]); // Run when session data becomes available
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    try {
+      if (messages.length > 0) {
+        localStorage.setItem('chat-tab-messages', JSON.stringify(messages));
+      }
+    } catch (error) {
+      console.error('Error saving chat messages:', error);
+    }
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -35,7 +76,7 @@ export default function ChatTab({ isConfigured }: ChatTabProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages.length]);
 
   const addMessage = (content: string, sender: 'user' | 'assistant', type: 'text' | 'image' = 'text', imageUrl?: string) => {
     const newMessage: Message = {

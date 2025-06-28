@@ -65,6 +65,11 @@ body {
   @apply bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed;
 }
 
+/* List button style */
+.li-btn {
+  @apply bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium;
+}
+
 /* Input field styles */
 .chat-input {
   @apply flex-1 px-4 py-3 border-2 border-gray-200 rounded-full focus:outline-none focus:border-blue-500 text-gray-700 placeholder:text-gray-400;
