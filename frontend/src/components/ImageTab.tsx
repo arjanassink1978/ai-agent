@@ -140,7 +140,7 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
     setIsGenerating(true);
 
     try {
-      const response = await fetch('/api/generate-image', {
+      const response = await fetch('/api/image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,7 +162,7 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
       const assistantMessage: ImageMessage = {
         id: (Date.now() + 1).toString(),
         content: `Generated image for: ${prompt}`,
-        imageUrl: data.imageUrl,
+        imageUrl: data.imageUrls && data.imageUrls.length > 0 ? data.imageUrls[0] : '',
         prompt: prompt,
         timestamp: new Date(),
         sender: 'assistant',
@@ -212,7 +212,7 @@ export default function ImageTab({ isConfigured }: ImageTabProps) {
       const userMessage: ImageMessage = {
         id: Date.now().toString(),
         content: `Uploaded image: ${file.name}`,
-        imageUrl: data.imageUrl,
+        imageUrl: data.imageUrls && data.imageUrls.length > 0 ? data.imageUrls[0] : '',
         prompt: prompt || 'Uploaded image',
         timestamp: new Date(),
         sender: 'user',

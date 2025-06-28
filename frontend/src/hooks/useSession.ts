@@ -33,6 +33,7 @@ export const useSession = () => {
       const response = await fetch(`/api/session/${sessionId}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('[Session] Loaded session data from backend:', data);
         setSessionData(data);
       } else {
         throw new Error('Failed to load session data');
@@ -62,10 +63,13 @@ export const useSession = () => {
           sessionId = data.sessionId;
           if (sessionId) {
             localStorage.setItem('session-id', sessionId);
+            console.log('[Session] Generated new session id:', sessionId);
           }
         } else {
           throw new Error('Failed to generate session');
         }
+      } else {
+        console.log('[Session] Found existing session id:', sessionId);
       }
 
       // Load session data
@@ -93,6 +97,7 @@ export const useSession = () => {
       
       if (response.ok) {
         setSessionData(prev => prev ? { ...prev, githubToken: token } : null);
+        console.log('[Session] Saved GitHub token to backend:', token);
       } else {
         throw new Error('Failed to save GitHub token');
       }
@@ -119,6 +124,7 @@ export const useSession = () => {
           githubUsername: username, 
           githubDisplayName: displayName 
         } : null);
+        console.log('[Session] Saved GitHub user info to backend:', username, displayName);
       } else {
         throw new Error('Failed to save GitHub user info');
       }
@@ -141,6 +147,7 @@ export const useSession = () => {
       
       if (response.ok) {
         setSessionData(prev => prev ? { ...prev, selectedRepository: repository } : null);
+        console.log('[Session] Saved selected repository to backend:', repository);
       } else {
         throw new Error('Failed to save selected repository');
       }
@@ -163,6 +170,7 @@ export const useSession = () => {
       
       if (response.ok) {
         setSessionData(prev => prev ? { ...prev, repositories } : null);
+        console.log('[Session] Saved repositories to backend:', repositories);
       } else {
         throw new Error('Failed to save repositories');
       }
@@ -190,6 +198,7 @@ export const useSession = () => {
           chatModel, 
           imageModel 
         } : null);
+        console.log('[Session] Saved OpenAI config to backend:', apiKey, chatModel, imageModel);
       } else {
         throw new Error('Failed to save OpenAI config');
       }

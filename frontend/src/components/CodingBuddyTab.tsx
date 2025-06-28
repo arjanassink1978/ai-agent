@@ -43,6 +43,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
         // Load GitHub token
         if (sessionData.githubToken) {
           setPersonalAccessToken(sessionData.githubToken);
+          console.log('[Session] Loaded GitHub token from session');
         }
 
         // Load user info and set authentication state
@@ -52,11 +53,13 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
             name: sessionData.githubDisplayName
           });
           setIsAuthenticated(true);
+          console.log('[Session] Loaded GitHub user info from session');
         }
 
         // Load repositories first
         if (sessionData.repositories) {
           setRepositories(sessionData.repositories as Repository[]);
+          console.log('[Session] Loaded repositories from session:', sessionData.repositories);
         }
 
         // Initialize with welcome message if no messages exist
@@ -123,6 +126,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
   // Save GitHub token to session when it changes
   useEffect(() => {
     if (personalAccessToken && sessionData?.sessionId) {
+      console.log('[Session] Saving GitHub token to session:', personalAccessToken);
       saveGithubToken(personalAccessToken);
     }
   }, [personalAccessToken, sessionData?.sessionId, saveGithubToken]);
@@ -130,6 +134,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
   // Save user info to session when it changes
   useEffect(() => {
     if (userInfo && sessionData?.sessionId) {
+      console.log('[Session] Saving GitHub user info to session:', userInfo);
       saveGithubUser(userInfo.username, userInfo.name);
     }
   }, [userInfo, sessionData?.sessionId, saveGithubUser]);
@@ -137,6 +142,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
   // Save selected repository to session when it changes
   useEffect(() => {
     if (selectedRepository && sessionData?.sessionId) {
+      console.log('[Session] Saving selected repository to session:', selectedRepository.full_name);
       saveSelectedRepository(selectedRepository.full_name);
     }
   }, [selectedRepository, sessionData?.sessionId, saveSelectedRepository]);
@@ -144,6 +150,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
   // Save repositories to session when they change
   useEffect(() => {
     if (repositories.length > 0 && sessionData?.sessionId) {
+      console.log('[Session] Saving repositories to session:', repositories);
       saveRepositories(repositories);
     }
   }, [repositories, sessionData?.sessionId, saveRepositories]);
@@ -259,7 +266,8 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
   };
 
   const fetchUserRepositories = useCallback(async () => {
-    console.log('Fetching user repositories...');
+    if (!personalAccessToken) return;
+    setIsLoading(true);
     try {
       const response = await fetch('/api/github/repositories', {
         method: 'POST',
@@ -268,22 +276,22 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
         },
         body: JSON.stringify({ personalAccessToken }),
       });
-
       const data = await response.json();
-      console.log('Repository fetch response:', data);
-
       if (data.success) {
         setRepositories(data.repositories || []);
-        console.log('Repositories set:', data.repositories?.length || 0);
-        addMessage(`Found ${data.repositories?.length || 0} repositories. Select one to connect.`, 'assistant');
+        console.log('[Session] Fetched and set repositories:', data.repositories);
+        if (sessionData?.sessionId) {
+          saveRepositories(data.repositories || []);
+        }
       } else {
-        addMessage('Failed to fetch repositories: ' + (data.error || 'Unknown error'), 'assistant');
+        setAuthError('Failed to fetch repositories.');
       }
-    } catch (error) {
-      console.error('Error fetching repositories:', error);
-      addMessage('Failed to fetch repositories. Please try again.', 'assistant');
+    } catch {
+      setAuthError('Error fetching repositories.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [personalAccessToken, addMessage]);
+  }, [personalAccessToken, sessionData?.sessionId, saveRepositories]);
 
   // Fallback: If we have authentication but no repositories, fetch them
   useEffect(() => {

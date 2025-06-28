@@ -1,25 +1,27 @@
 # AI Agent Frontend
 
-This is the Next.js frontend for the AI Agent application. It provides a modern, responsive interface for chatting with AI and generating images, featuring LinkedIn-inspired styling and persistent chat sessions.
+This is the Next.js frontend for the AI Agent application. It provides a modern, responsive interface for chatting with AI, generating images, and managing GitHub repositories, featuring LinkedIn-inspired styling and comprehensive session management.
 
 ## Features
 
 - 💬 **Chat Interface**: Real-time chat with OpenAI GPT models and persistent sessions
-- 🎨 **Image Generation**: Generate images using DALL-E models
-- 📁 **File Upload**: Upload files for chat context
-- 💾 **Session Management**: Persistent chat sessions with search and organization
-- 🔧 **Model Configuration**: Switch between different AI models
+- 🎨 **Image Generation**: Generate images using DALL-E models with localStorage persistence
+- 👨‍💻 **GitHub Integration**: Full GitHub repository management via MCP server
+- 💾 **Session Management**: Comprehensive session persistence with database storage
+- 🔧 **Model Configuration**: Switch between different AI models with persistent settings
 - 📱 **Responsive Design**: Works on desktop and mobile devices
 - ⚡ **Modern UI**: Built with Next.js 15, TypeScript, and LinkedIn-inspired styling
+- 🔄 **Cross-tab Persistence**: All state preserved when switching between tabs
 
 ## Tech Stack
 
 - **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS with LinkedIn-inspired design system
-- **State Management**: React Hooks
-- **API**: REST API calls to Spring Boot backend
+- **State Management**: React Hooks with custom session management
+- **API**: REST API calls to Spring Boot backend with proxy configuration
 - **File Handling**: Native file upload with FormData
+- **Session Storage**: Database-backed session management with localStorage fallback
 
 ## Getting Started
 
@@ -28,7 +30,9 @@ This is the Next.js frontend for the AI Agent application. It provides a modern,
 - Node.js 18+ 
 - npm or yarn
 - Spring Boot backend running on port 8080
+- GitHub MCP server running on port 8081
 - OpenAI API key (for chat and image generation)
+- GitHub Personal Access Token (for repository management)
 
 ### Installation
 
@@ -52,18 +56,22 @@ The frontend is structured as follows:
 src/
 ├── app/                 # Next.js app router
 │   ├── page.tsx        # Main page with tabbed interface
-│   └── layout.tsx      # Root layout
+│   ├── layout.tsx      # Root layout
+│   └── globals.css     # Global styles
 ├── components/         # React components
 │   ├── ChatInterface.tsx    # Main interface with tabs
 │   ├── ChatTab.tsx         # Chat functionality with sessions
 │   ├── ImageTab.tsx        # Image generation from prompts
+│   ├── CodingBuddyTab.tsx  # GitHub integration and coding assistant
 │   ├── ConfigSection.tsx   # API configuration
 │   ├── ModelSelector.tsx   # Model selection
 │   └── FileUpload.tsx      # File upload component
+├── hooks/             # Custom React hooks
+│   └── useSession.ts  # Session management hook
 └── types/             # TypeScript type definitions
 ```
 
-## Two-Tab Interface
+## Three-Tab Interface
 
 ### 1. 💬 Chat Tab
 - **Real-time messaging** with AI models
@@ -71,23 +79,73 @@ src/
 - **File upload** for chat context (.txt, .md, .json, etc.)
 - **Session management** with search functionality
 - **Message history** with timestamps
+- **Cross-tab persistence** of chat history
 
 ### 2. 🎨 Generate Images Tab
 - **Text-to-image generation** using DALL-E
-- **Multiple size options**: Square, Landscape, Portrait
+- **Multiple size options**: Square (1024x1024), Landscape (1792x1024), Portrait (1024x1792)
 - **Quality settings**: Standard and HD
 - **Style options**: Vivid and Natural
 - **Image preview** with prompts
+- **localStorage persistence** of image history and settings
+
+### 3. 👨‍💻 Coding Buddy Tab
+- **GitHub authentication** with Personal Access Tokens
+- **Repository browsing** and selection
+- **Branch operations** (create new branches)
+- **Issue management** (create GitHub issues)
+- **AI-powered code analysis** and suggestions
+- **Session persistence** of GitHub token, user info, and selected repository
+- **Real-time connection status** and error handling
+
+## Session Management
+
+The frontend includes comprehensive session management with database storage:
+
+### Database-Backed Sessions
+- **User Sessions**: GitHub tokens, user info, repository lists, and configurations
+- **Chat Sessions**: Complete conversation history and context
+- **Automatic Restoration**: Seamless state restoration on page reload
+- **Cross-tab Persistence**: All settings preserved when switching tabs
+
+### Session Data Structure
+```typescript
+interface UserSession {
+  sessionId: string;
+  githubToken?: string;
+  githubUsername?: string;
+  githubDisplayName?: string;
+  repositories?: Repository[];
+  selectedRepository?: string;
+  openaiApiKey?: string;
+  chatModel?: string;
+  imageModel?: string;
+}
+```
+
+### useSession Hook
+The `useSession` hook provides:
+- **Session initialization** and management
+- **Database operations** for saving/loading session data
+- **Automatic state restoration** on component mount
+- **Error handling** and loading states
 
 ## API Integration
 
-The frontend communicates with the Spring Boot backend through:
+The frontend communicates with multiple backend services:
 
-- **Proxy Configuration**: API requests are proxied to `http://localhost:8080`
-- **CORS**: Backend is configured to accept requests from `http://localhost:3000`
-- **Endpoints**:
+### Backend Services
+- **Spring Boot Backend** (port 8080): Main REST API for chat, images, and session management
+- **GitHub MCP Server** (port 8081): Model Context Protocol server for GitHub operations
 
-### Chat & Sessions
+### Proxy Configuration
+API requests are automatically proxied through Next.js:
+- `/api/*` → `http://localhost:8080/api/*`
+- CORS properly configured for development
+
+### Endpoints
+
+#### Chat & Sessions
 - `POST /api/chat` - Send chat messages
 - `GET /api/sessions` - Get all chat sessions
 - `GET /api/sessions/{sessionId}` - Get specific session with messages
@@ -97,39 +155,66 @@ The frontend communicates with the Spring Boot backend through:
 - `DELETE /api/sessions/{sessionId}` - Delete session
 - `GET /api/sessions/search` - Search sessions
 
-### Configuration
+#### Session Management
+- `POST /api/session/generate` - Generate new session ID
+- `GET /api/session/{sessionId}` - Get session data
+- `PUT /api/session/{sessionId}/token` - Save GitHub token
+- `PUT /api/session/{sessionId}/user-info` - Save user information
+- `PUT /api/session/{sessionId}/repositories` - Save repository list
+- `PUT /api/session/{sessionId}/selected-repository` - Save selected repository
+- `PUT /api/session/{sessionId}/config` - Save OpenAI configuration
+
+#### Configuration
 - `POST /api/configure` - Configure API key and models
 - `POST /api/set-model` - Change chat model
 - `POST /api/set-image-model` - Change image model
 - `GET /api/models` - Get current model configuration
 
-### Image Generation
+#### Image Generation
 - `POST /api/image` - Generate image from text prompt
 
-### File Upload
+#### GitHub Integration
+- `POST /api/github/authenticate` - Authenticate with GitHub
+- `POST /api/github/repositories` - Get user repositories
+- `POST /api/agent` - Execute GitHub operations via MCP server
+
+#### File Upload
 - `POST /api/upload/chat` - Upload file for chat context
+- `POST /api/upload/image` - Upload image for processing
 
 ## Component Details
 
 ### ChatInterface.tsx
-Main container component that manages the two-tab interface:
-- Tab switching logic
-- Global state management
+Main container component that manages the three-tab interface:
+- Tab switching logic with persistent state
+- Global session management
 - API configuration handling
+- Responsive design for mobile and desktop
 
 ### ChatTab.tsx
 Handles chat functionality with persistent sessions:
-- Real-time messaging
+- Real-time messaging with typing indicators
 - Session creation and management
 - File upload for context
-- Message history display
+- Message history display with timestamps
+- Search and filter functionality
 
 ### ImageTab.tsx
 Manages image generation from text prompts:
 - Prompt input and validation
 - Size, quality, and style options
-- Image display and download
-- Error handling
+- Image display with download capability
+- Error handling and loading states
+- localStorage persistence of settings and history
+
+### CodingBuddyTab.tsx
+GitHub integration and coding assistant:
+- GitHub authentication with Personal Access Tokens
+- Repository browsing and selection
+- Branch and issue creation
+- AI-powered code analysis
+- Connection status and error handling
+- Session persistence of GitHub data
 
 ### FileUpload.tsx
 Reusable file upload component:
@@ -137,28 +222,24 @@ Reusable file upload component:
 - File type validation
 - Upload progress indication
 - Error handling
+- Support for multiple file types
 
-## Session Management
+## Session Persistence Features
 
-The frontend includes comprehensive session management:
+### Database Storage
+- **User Sessions**: All GitHub and configuration data stored in H2 database
+- **Chat Sessions**: Complete conversation history with context
+- **Automatic Cleanup**: Session data managed efficiently
 
-- **Session Creation**: Automatically creates new sessions for conversations
-- **Session Persistence**: Sessions are stored in H2 database
-- **Session Search**: Search through existing sessions
-- **Session Organization**: Sessions are organized by title and timestamp
-- **Message History**: Complete message history for each session
+### localStorage Fallback
+- **Image History**: Generated images and settings
+- **Temporary Data**: Non-sensitive information
+- **Performance**: Fast access for frequently used data
 
-## File Upload Features
-
-### Supported File Types
-- **Chat Context**: `.txt`, `.md`, `.json`, `.csv`, `.xml`, `.html`, `.css`, `.js`, `.py`, `.java`, `.cpp`, `.c`, `.h`, `.sql`, `.log`
-
-### Upload Functionality
-- **Drag-and-drop** interface
-- **File validation** and size limits
-- **Progress indication** during upload
-- **Error handling** for failed uploads
-- **Secure storage** in backend uploads directory
+### Cross-tab Synchronization
+- **State Sharing**: All tabs share the same session data
+- **Real-time Updates**: Changes in one tab reflect in others
+- **Automatic Restoration**: State restored when switching tabs
 
 ## Design System
 
@@ -168,26 +249,31 @@ The frontend features a **LinkedIn-inspired design system**:
 - **Primary Blue**: Professional LinkedIn blue (#0077B5)
 - **Neutral Grays**: Clean, readable text colors
 - **White Backgrounds**: Clean, professional appearance
+- **Success/Error States**: Clear visual feedback
 
 ### Components
-- **Buttons**: Rounded corners with subtle shadows
+- **Buttons**: Rounded corners with subtle shadows and hover effects
 - **Cards**: Clean containers with consistent spacing
-- **Inputs**: Professional form elements
+- **Inputs**: Professional form elements with focus states
 - **Chat Bubbles**: Distinct user and assistant styling
+- **Tabs**: Clear navigation with active states
 
 ### Typography
 - **Clean fonts** with proper hierarchy
 - **Readable text** with appropriate contrast
 - **Consistent spacing** throughout the interface
+- **Responsive sizing** for different screen sizes
 
 ## Configuration
 
-The frontend automatically proxies API requests to the backend. Make sure:
+The frontend automatically proxies API requests to the backend services. Make sure:
 
 1. The Spring Boot backend is running on port 8080
-2. CORS is properly configured on the backend
-3. Your API keys are configured through the web interface:
+2. The GitHub MCP server is running on port 8081
+3. CORS is properly configured on both backend services
+4. Your API keys are configured through the web interface:
    - **OpenAI API key** for chat and image generation
+   - **GitHub Personal Access Token** for repository management
 
 ## Building for Production
 
@@ -208,25 +294,21 @@ This creates an optimized production build in the `.next` folder.
 ## Troubleshooting
 
 ### Common Issues
+1. **Port conflicts**: Ensure ports 3000, 8080, and 8081 are available
+2. **CORS errors**: Check backend CORS configuration
+3. **Session persistence**: Verify database connection and session endpoints
+4. **GitHub integration**: Ensure MCP server is running and accessible
 
-1. **API Connection**: Ensure the Spring Boot backend is running on port 8080
-2. **CORS Errors**: Check that the backend CORS configuration includes `http://localhost:3000`
-3. **Build Errors**: Verify all dependencies are installed with `npm install`
-4. **TypeScript Errors**: Run `npm run type-check` to identify type issues
-
-### Performance Tips
-
-- **Image Optimization**: Next.js automatically optimizes images
-- **Code Splitting**: Components are automatically code-split
-- **Caching**: API responses are cached appropriately
-- **Bundle Size**: Use dynamic imports for large components if needed
+### Debug Mode
+Enable debug logging by setting `NODE_ENV=development` and checking browser console for detailed error messages.
 
 ## Contributing
 
 1. Follow the existing code style and patterns
-2. Test your changes thoroughly
-3. Ensure TypeScript types are properly defined
-4. Update documentation as needed
+2. Add TypeScript types for new features
+3. Test session persistence across tabs
+4. Ensure responsive design works on mobile
+5. Update documentation for new features
 
 ## Learn More
 
