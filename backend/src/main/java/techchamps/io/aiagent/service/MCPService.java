@@ -194,9 +194,48 @@ public class MCPService {
     }
     
     private String formatGitHubResponse(JsonNode data, String description) {
+        // If it's a single item (not an array), and the description matches a known action, return a natural language response
+        if (!data.isArray() && data.has("number")) {
+            String action = description.toLowerCase();
+            String number = data.get("number").asText();
+            String title = data.has("title") ? data.get("title").asText() : "";
+            String url = data.has("html_url") ? data.get("html_url").asText() : null;
+            String type = "item";
+            if (action.contains("issue")) type = "issue";
+            else if (action.contains("pull request") || action.contains("pr")) type = "pull request";
+
+            StringBuilder response = new StringBuilder();
+            if (action.contains("close") && type.equals("issue")) {
+                response.append("I closed issue #").append(number).append(" successfully!");
+            } else if (action.contains("open") && type.equals("issue")) {
+                response.append("I opened issue #").append(number).append(": ").append(title);
+            } else if (action.contains("create") && type.equals("issue")) {
+                response.append("I created issue #").append(number).append(": ").append(title);
+            } else if (action.contains("reopen") && type.equals("issue")) {
+                response.append("I reopened issue #").append(number).append(" successfully!");
+            } else if (action.contains("merge") && type.equals("pull request")) {
+                response.append("I merged pull request #").append(number).append(": ").append(title);
+            } else if (action.contains("close") && type.equals("pull request")) {
+                response.append("I closed pull request #").append(number).append(": ").append(title);
+            } else if (action.contains("open") && type.equals("pull request")) {
+                response.append("I opened pull request #").append(number).append(": ").append(title);
+            } else if (action.contains("create") && type.equals("pull request")) {
+                response.append("I created pull request #").append(number).append(": ").append(title);
+            } else {
+                // Fallback to a generic message
+                response.append("I performed the following action: ").append(description);
+                if (!title.isEmpty()) {
+                    response.append(" (Title: ").append(title).append(")");
+                }
+            }
+            if (url != null) {
+                response.append("\n").append(url);
+            }
+            return response.toString();
+        }
+        // For lists and other responses, keep the current markdown format
         StringBuilder response = new StringBuilder();
         response.append("✅ **").append(description).append(":**\n\n");
-        
         if (data.isArray()) {
             if (data.size() == 0) {
                 response.append("No items found.");
@@ -246,7 +285,7 @@ public class MCPService {
                 }
             }
         } else {
-            // Single item (like created issue/PR)
+            // Single item fallback (not an issue/PR)
             if (data.has("number")) {
                 response.append("🔸 **#").append(data.get("number").asText())
                       .append("** ").append(data.get("title").asText()).append("\n");
@@ -255,7 +294,6 @@ public class MCPService {
                 }
             }
         }
-        
         return response.toString();
     }
 } 
