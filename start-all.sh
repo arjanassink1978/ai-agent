@@ -91,7 +91,7 @@ done
 # Start frontend
 (
   echo -e "${YELLOW}🔧 Starting frontend...${NC}"
-  cd frontend && nohup npm run dev:next > ../frontend.log 2>&1 &
+  cd frontend && nohup npm run dev > ../frontend.log 2>&1 &
 )
 echo -e "${YELLOW}⏳ Waiting for frontend to start...${NC}"
 for i in {1..20}; do
@@ -116,7 +116,6 @@ echo "🌐 Services:"
 echo "   Frontend:    http://localhost:3000"
 echo "   Backend:     http://localhost:8080"
 echo "   H2 Console:  http://localhost:8080/h2-console"
-echo "   MCP Server:  Official GitHub MCP Server"
 echo ""
 echo "📋 Log Files:"
 echo "   Backend:     ./backend.log"
