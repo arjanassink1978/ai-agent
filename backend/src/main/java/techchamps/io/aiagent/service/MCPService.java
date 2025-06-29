@@ -106,10 +106,14 @@ public class MCPService {
             "Examples:\n" +
             "- List issues: {\"method\":\"GET\",\"endpoint\":\"/repos/%s/issues?state=open\",\"description\":\"List open issues\"}\n" +
             "- Create issue: {\"method\":\"POST\",\"endpoint\":\"/repos/%s/issues\",\"data\":{\"title\":\"Bug fix\",\"body\":\"Description\"},\"description\":\"Create new issue\"}\n" +
+            "- Close issue: {\"method\":\"PATCH\",\"endpoint\":\"/repos/%s/issues/2\",\"data\":{\"state\":\"closed\"},\"description\":\"Close issue number 2\"}\n" +
+            "- Open issue: {\"method\":\"PATCH\",\"endpoint\":\"/repos/%s/issues/2\",\"data\":{\"state\":\"open\"},\"description\":\"Open issue number 2\"}\n" +
             "- List PRs: {\"method\":\"GET\",\"endpoint\":\"/repos/%s/pulls?state=open\",\"description\":\"List open pull requests\"}\n" +
             "- List branches: {\"method\":\"GET\",\"endpoint\":\"/repos/%s/branches\",\"description\":\"List all branches\"}\n" +
+            "- Merge PR: {\"method\":\"PUT\",\"endpoint\":\"/repos/%s/pulls/5/merge\",\"data\":{\"merge_method\":\"squash\"},\"description\":\"Merge pull request number 5\"}\n" +
+            "- Close PR: {\"method\":\"PATCH\",\"endpoint\":\"/repos/%s/pulls/5\",\"data\":{\"state\":\"closed\"},\"description\":\"Close pull request number 5\"}\n" +
             "User request: %s",
-            repository, repository, repository, repository, repository, message
+            repository, repository, repository, repository, repository, repository, repository, repository, message
         );
         
         try {
@@ -130,7 +134,10 @@ public class MCPService {
                 response.put("message", "I'm not sure what you'd like me to do. Try:\n" +
                     "- 'List open issues'\n" +
                     "- 'Create an issue about the login bug'\n" +
+                    "- 'Close issue #2'\n" +
+                    "- 'Open issue #3'\n" +
                     "- 'Show pull requests'\n" +
+                    "- 'Merge pull request #5'\n" +
                     "- 'List branches'\n" +
                     "- 'Show recent commits'");
                 return CompletableFuture.completedFuture(response);
