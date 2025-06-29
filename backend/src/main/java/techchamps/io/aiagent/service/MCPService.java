@@ -6,14 +6,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import techchamps.io.aiagent.model.ChatRequest;
+import techchamps.io.aiagent.model.ChatResponse;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -21,27 +20,20 @@ public class MCPService {
     
     private static final Logger logger = LoggerFactory.getLogger(MCPService.class);
     
-    // Use official GitHub MCP server
-    private static final String OFFICIAL_MCP_URL = "https://api.githubcopilot.com/mcp";
-    
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final WebClient webClient = WebClient.builder().build();
+    
+    @Autowired
+    private AiService aiService;
     
     public CompletableFuture<ObjectNode> getMCPStatus() {
         ObjectNode response = objectMapper.createObjectNode();
         response.put("status", "connected");
-        response.put("server", "Official GitHub MCP Server");
-        response.put("url", OFFICIAL_MCP_URL);
+        response.put("server", "AI-Powered GitHub Assistant");
         return CompletableFuture.completedFuture(response);
     }
     
     public CompletableFuture<ObjectNode> listRepositories(String token, String username) {
-        // For now, keep the existing GitHub API call for repository listing
-        // This could be replaced with MCP call if needed
-        ObjectNode request = objectMapper.createObjectNode();
-        request.put("token", token);
-        request.put("username", username);
-        
         return webClient.get()
             .uri("https://api.github.com/users/" + username + "/repos")
             .header("Authorization", "token " + token)
@@ -101,116 +93,169 @@ public class MCPService {
         
         logger.info("Processing request: {}", message);
         
-        // Simple keyword-based routing to GitHub API
-        String lowerMessage = message.toLowerCase();
+        // Use LLM to understand what the user wants and generate the API call
+        String systemPrompt = String.format(
+            "You are a GitHub API assistant. The user wants to do something with repository: %s. " +
+            "Respond with ONLY a JSON object in this exact format:\n" +
+            "{\n" +
+            "  \"method\": \"GET|POST|PUT|DELETE\",\n" +
+            "  \"endpoint\": \"/repos/{owner}/{repo}/...\",\n" +
+            "  \"data\": { /* POST/PUT data if needed */ },\n" +
+            "  \"description\": \"What this operation does\"\n" +
+            "}\n" +
+            "Examples:\n" +
+            "- List issues: {\"method\":\"GET\",\"endpoint\":\"/repos/%s/issues?state=open\",\"description\":\"List open issues\"}\n" +
+            "- Create issue: {\"method\":\"POST\",\"endpoint\":\"/repos/%s/issues\",\"data\":{\"title\":\"Bug fix\",\"body\":\"Description\"},\"description\":\"Create new issue\"}\n" +
+            "- List PRs: {\"method\":\"GET\",\"endpoint\":\"/repos/%s/pulls?state=open\",\"description\":\"List open pull requests\"}\n" +
+            "- List branches: {\"method\":\"GET\",\"endpoint\":\"/repos/%s/branches\",\"description\":\"List all branches\"}\n" +
+            "User request: %s",
+            repository, repository, repository, repository, repository, message
+        );
         
-        if (lowerMessage.contains("list") && lowerMessage.contains("issue")) {
-            return listIssues(repository, token);
-        } else if (lowerMessage.contains("create") && lowerMessage.contains("issue")) {
-            return createIssue(message, repository, token);
-        } else {
-            ObjectNode response = objectMapper.createObjectNode();
-            response.put("success", true);
-            response.put("message", "I understand: " + message + "\n\nTry:\n- 'List all open issues'\n- 'Create an issue about the login bug'");
-            return CompletableFuture.completedFuture(response);
+        try {
+            ChatRequest chatRequest = new ChatRequest();
+            chatRequest.setMessage(systemPrompt);
+            
+            ChatResponse aiResponse = aiService.chat(chatRequest);
+            String responseText = aiResponse.getMessage().trim();
+            
+            // Try to parse the JSON response from the LLM
+            try {
+                JsonNode apiCall = objectMapper.readTree(responseText);
+                return executeGitHubApiCall(apiCall, repository, token);
+            } catch (Exception e) {
+                logger.error("Failed to parse LLM response as JSON", e);
+                ObjectNode response = objectMapper.createObjectNode();
+                response.put("success", true);
+                response.put("message", "I'm not sure what you'd like me to do. Try:\n" +
+                    "- 'List open issues'\n" +
+                    "- 'Create an issue about the login bug'\n" +
+                    "- 'Show pull requests'\n" +
+                    "- 'List branches'\n" +
+                    "- 'Show recent commits'");
+                return CompletableFuture.completedFuture(response);
+            }
+            
+        } catch (Exception e) {
+            logger.error("Error processing request", e);
+            ObjectNode errorResponse = objectMapper.createObjectNode();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Failed to process request: " + e.getMessage());
+            return CompletableFuture.completedFuture(errorResponse);
         }
     }
     
-    private CompletableFuture<ObjectNode> listIssues(String repository, String token) {
-        return webClient.get()
-            .uri("https://api.github.com/repos/" + repository + "/issues?state=open")
+    private CompletableFuture<ObjectNode> executeGitHubApiCall(JsonNode apiCall, String repository, String token) {
+        String method = apiCall.get("method").asText();
+        String endpoint = apiCall.get("endpoint").asText();
+        String description = apiCall.get("description").asText();
+        
+        // Replace {owner}/{repo} with actual repository
+        endpoint = endpoint.replace("{owner}/{repo}", repository);
+        
+        WebClient.RequestBodySpec request = webClient.method(org.springframework.http.HttpMethod.valueOf(method))
+            .uri("https://api.github.com" + endpoint)
             .header("Authorization", "token " + token)
-            .header("Accept", "application/vnd.github.v3+json")
-            .retrieve()
+            .header("Accept", "application/vnd.github.v3+json");
+        
+        // Add data for POST/PUT requests
+        if ((method.equals("POST") || method.equals("PUT")) && apiCall.has("data")) {
+            request.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                   .bodyValue(apiCall.get("data").toString());
+        }
+        
+        return request.retrieve()
             .bodyToMono(String.class)
             .map(jsonResponse -> {
                 try {
-                    JsonNode issues = objectMapper.readTree(jsonResponse);
-                    StringBuilder responseText = new StringBuilder();
-                    responseText.append("📋 **Open Issues:**\n\n");
+                    JsonNode data = objectMapper.readTree(jsonResponse);
+                    String formattedResponse = formatGitHubResponse(data, description);
                     
-                    if (issues.size() == 0) {
-                        responseText.append("No open issues found.");
-                    } else {
-                        for (JsonNode issue : issues) {
-                            responseText.append("🔸 **#").append(issue.get("number").asText())
-                                      .append("** ").append(issue.get("title").asText())
-                                      .append("\n");
-                            responseText.append("   👤 ").append(issue.get("user").get("login").asText())
-                                      .append(" • ").append(issue.get("created_at").asText().substring(0, 10))
-                                      .append("\n");
-                            responseText.append("   🔗 ").append(issue.get("html_url").asText()).append("\n\n");
+                    ObjectNode response = objectMapper.createObjectNode();
+                    response.put("success", true);
+                    response.put("message", formattedResponse);
+                    return response;
+                } catch (Exception e) {
+                    logger.error("Error parsing GitHub API response", e);
+                    ObjectNode errorResponse = objectMapper.createObjectNode();
+                    errorResponse.put("success", false);
+                    errorResponse.put("error", "Failed to parse response: " + e.getMessage());
+                    return errorResponse;
+                }
+            })
+            .onErrorResume(e -> {
+                logger.error("Error executing GitHub API call", e);
+                ObjectNode errorResponse = objectMapper.createObjectNode();
+                errorResponse.put("success", false);
+                errorResponse.put("error", "Failed to execute operation: " + e.getMessage());
+                return Mono.just(errorResponse);
+            })
+            .toFuture();
+    }
+    
+    private String formatGitHubResponse(JsonNode data, String description) {
+        StringBuilder response = new StringBuilder();
+        response.append("✅ **").append(description).append(":**\n\n");
+        
+        if (data.isArray()) {
+            if (data.size() == 0) {
+                response.append("No items found.");
+            } else {
+                for (JsonNode item : data) {
+                    if (item.has("number")) {
+                        // Issue or PR
+                        response.append("🔸 **#").append(item.get("number").asText())
+                              .append("** ").append(item.get("title").asText()).append("\n");
+                        if (item.has("user")) {
+                            response.append("   👤 ").append(item.get("user").get("login").asText());
                         }
+                        if (item.has("created_at")) {
+                            response.append(" • ").append(item.get("created_at").asText().substring(0, 10));
+                        }
+                        response.append("\n");
+                        if (item.has("html_url")) {
+                            response.append("   🔗 ").append(item.get("html_url").asText()).append("\n");
+                        }
+                        response.append("\n");
+                    } else if (item.has("name")) {
+                        // Branch
+                        response.append("🌿 **").append(item.get("name").asText()).append("**\n");
+                        if (item.has("commit")) {
+                            response.append("   📝 ").append(item.get("commit").get("sha").asText().substring(0, 7));
+                            if (item.get("commit").has("commit")) {
+                                response.append(" • ").append(item.get("commit").get("commit").get("message").asText());
+                            }
+                            response.append("\n");
+                        }
+                        response.append("\n");
+                    } else if (item.has("sha")) {
+                        // Commit
+                        response.append("🔸 **").append(item.get("sha").asText().substring(0, 7)).append("**\n");
+                        if (item.has("commit")) {
+                            response.append("   📝 ").append(item.get("commit").get("message").asText()).append("\n");
+                            if (item.get("commit").has("author")) {
+                                response.append("   👤 ").append(item.get("commit").get("author").get("name").asText());
+                                if (item.get("commit").get("author").has("date")) {
+                                    response.append(" • ").append(item.get("commit").get("author").get("date").asText().substring(0, 10));
+                                }
+                                response.append("\n");
+                            }
+                        }
+                        response.append("\n");
                     }
-                    
-                    ObjectNode response = objectMapper.createObjectNode();
-                    response.put("success", true);
-                    response.put("message", responseText.toString());
-                    return response;
-                } catch (Exception e) {
-                    logger.error("Error parsing issues response", e);
-                    ObjectNode errorResponse = objectMapper.createObjectNode();
-                    errorResponse.put("success", false);
-                    errorResponse.put("error", "Failed to parse issues response");
-                    return errorResponse;
                 }
-            })
-            .onErrorResume(e -> {
-                logger.error("Error listing issues", e);
-                ObjectNode errorResponse = objectMapper.createObjectNode();
-                errorResponse.put("success", false);
-                errorResponse.put("error", "Failed to list issues: " + e.getMessage());
-                return Mono.just(errorResponse);
-            })
-            .toFuture();
-    }
-    
-    private CompletableFuture<ObjectNode> createIssue(String message, String repository, String token) {
-        String title = message.replaceAll("(?i).*create.*issue.*about\\s+", "")
-                             .replaceAll("(?i).*create.*issue.*for\\s+", "")
-                             .replaceAll("(?i).*create.*issue.*", "")
-                             .trim();
-        
-        if (title.isEmpty()) {
-            title = "Issue created via AI Agent";
+            }
+        } else {
+            // Single item (like created issue/PR)
+            if (data.has("number")) {
+                response.append("🔸 **#").append(data.get("number").asText())
+                      .append("** ").append(data.get("title").asText()).append("\n");
+                if (data.has("html_url")) {
+                    response.append("🔗 ").append(data.get("html_url").asText());
+                }
+            }
         }
         
-        ObjectNode issueData = objectMapper.createObjectNode();
-        issueData.put("title", title);
-        issueData.put("body", "Issue created via AI Agent\n\nOriginal request: " + message);
-        
-        return webClient.post()
-            .uri("https://api.github.com/repos/" + repository + "/issues")
-            .header("Authorization", "token " + token)
-            .header("Accept", "application/vnd.github.v3+json")
-            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-            .bodyValue(issueData.toString())
-            .retrieve()
-            .bodyToMono(String.class)
-            .map(jsonResponse -> {
-                try {
-                    JsonNode issue = objectMapper.readTree(jsonResponse);
-                    ObjectNode response = objectMapper.createObjectNode();
-                    response.put("success", true);
-                    response.put("message", "✅ **Issue created successfully!**\n\n" +
-                                          "🔸 **#" + issue.get("number").asText() + "** " + issue.get("title").asText() + "\n" +
-                                          "🔗 " + issue.get("html_url").asText());
-                    return response;
-                } catch (Exception e) {
-                    logger.error("Error parsing issue creation response", e);
-                    ObjectNode errorResponse = objectMapper.createObjectNode();
-                    errorResponse.put("success", false);
-                    errorResponse.put("error", "Failed to parse issue creation response");
-                    return errorResponse;
-                }
-            })
-            .onErrorResume(e -> {
-                logger.error("Error creating issue", e);
-                ObjectNode errorResponse = objectMapper.createObjectNode();
-                errorResponse.put("success", false);
-                errorResponse.put("error", "Failed to create issue: " + e.getMessage());
-                return Mono.just(errorResponse);
-            })
-            .toFuture();
+        return response.toString();
     }
 } 
