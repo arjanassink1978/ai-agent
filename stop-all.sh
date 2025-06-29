@@ -36,9 +36,6 @@ kill_port() {
     fi
 }
 
-print_status "Stopping MCP server (port 3001)..."
-kill_port 3001
-
 print_status "Stopping backend (port 8080)..."
 kill_port 8080
 
@@ -46,12 +43,12 @@ print_status "Stopping frontend (port 3000)..."
 kill_port 3000
 
 # Remove .pid files if present
-rm -f .backend.pid .frontend.pid .mcp.pid
+rm -f .backend.pid .frontend.pid
 
 print_success "All services stopped."
 
 # Clean up log files
 print_status "Cleaning up log files..."
-rm -f backend.log mcp-server.log frontend.log
+rm -f backend.log frontend.log
 
 print_success "All services stopped and cleaned up!" 

@@ -32,7 +32,13 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
       setMessages([
         {
           id: '1',
-          content: "Hello! I'm your Coding Buddy. Enter your GitHub Personal Access Token to get started. I'll help you with best practices, code reviews, refactoring suggestions, and development tasks.",
+          content: "Hello! I'm your intelligent Coding Buddy. I can help you with:\n\n" +
+                   "• Creating GitHub issues\n" +
+                   "• Code reviews and analysis\n" +
+                   "• File analysis and suggestions\n" +
+                   "• Development best practices\n" +
+                   "• Repository management\n\n" +
+                   "Just tell me what you'd like to do in natural language! Enter your GitHub Personal Access Token to get started.",
           sender: 'assistant',
           timestamp: new Date(),
           type: 'text'
@@ -216,7 +222,12 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
         setAvailableFiles(data.files || []);
         
         addMessage(
-          `Connected to repository: ${repo.full_name}. I'm your coding buddy and I'll help you with best practices, code reviews, refactoring suggestions, and development tasks. I have access to the codebase context and can analyze files, suggest improvements, and help with debugging.`,
+          `Connected to repository: ${repo.full_name}. I'm your intelligent coding buddy and I can help you with:\n\n` +
+          `• **GitHub Issues**: "Create an issue about the login bug" or "File a bug report for the API timeout"\n` +
+          `• **Code Reviews**: "Review the authentication code" or "Check this file for security issues"\n` +
+          `• **File Analysis**: "Analyze the main.js file" or "Review these files for best practices"\n` +
+          `• **General Help**: "How do I implement OAuth?" or "What's the best way to structure this project?"\n\n` +
+          `Just tell me what you need in natural language!`,
           'assistant'
         );
       } else {
@@ -508,7 +519,7 @@ export default function CodingBuddyTab({ isConfigured }: CodingBuddyTabProps) {
         <form onSubmit={handleSendMessage} className="flex gap-3">
           <input
             type="text"
-            placeholder={isConnected ? "Ask your coding buddy for help, code reviews, refactoring suggestions, or any development questions..." : "Enter your GitHub Personal Access Token to start chatting with your coding buddy"}
+            placeholder={isConnected ? "Tell me what you'd like to do... (e.g., 'Create an issue about the login bug', 'Review the authentication code', 'Analyze the main.js file')" : "Enter your GitHub Personal Access Token to start chatting with your coding buddy"}
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             disabled={!isConfigured || !isConnected || isLoading}
