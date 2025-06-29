@@ -146,76 +146,29 @@ public class CodingController {
     @PostMapping("/coding-chat")
     public ResponseEntity<ChatResponse> codingChat(@RequestBody ChatRequest request) {
         try {
-            // Extract GitHub token and repository info from the request
             String personalAccessToken = (String) request.getMetadata().get("personalAccessToken");
             String repositoryUrl = (String) request.getMetadata().get("repositoryUrl");
             List<String> selectedFiles = request.getMetadata().get("selectedFiles") != null ? 
                 (List<String>) request.getMetadata().get("selectedFiles") : null;
-            
-            // Check if the user is asking to create an issue
-            String message = request.getMessage().toLowerCase();
-            if (message.contains("create issue") || message.contains("create an issue") || 
-                message.contains("open issue") || message.contains("file issue") ||
-                message.contains("report issue") || message.contains("submit issue")) {
-                
-                // Extract repository name from URL
-                String repository = repositoryUrl.replace("https://github.com/", "");
-                
-                // Try to extract title and body from the message
-                String title = "Issue from AI Assistant";
-                String body = request.getMessage();
-                
-                // Use MCP service to create issue
-                try {
-                    CompletableFuture<ObjectNode> mcpResult = mcpService.createIssue(repository, title, body, personalAccessToken, null);
-                    ObjectNode result = mcpResult.get();
-                    
-                    if (result.get("success").asBoolean()) {
-                        ChatResponse response = new ChatResponse();
-                        response.setMessage("✅ Issue created successfully!\n\n" +
-                            "Issue #" + result.get("issueNumber").asText() + "\n" +
-                            "URL: " + result.get("issueUrl").asText() + "\n\n" +
-                            "I've created an issue in your repository with your request. You can view and edit it at the link above.");
-                        return ResponseEntity.ok(response);
-                    } else {
-                        ChatResponse response = new ChatResponse();
-                        response.setMessage("❌ Failed to create issue: " + result.get("error").asText());
-                        return ResponseEntity.ok(response);
-                    }
-                } catch (Exception e) {
-                    ChatResponse response = new ChatResponse();
-                    response.setMessage("❌ Error creating issue: " + e.getMessage());
-                    return ResponseEntity.ok(response);
-                }
-            }
-            
-            // Build context from selected files
-            StringBuilder context = new StringBuilder();
+
+            // Extract repository name from URL
+            String repository = repositoryUrl != null ? repositoryUrl.replace("https://github.com/", "") : null;
+
+            // Build the payload for the smart /execute endpoint
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode payload = mapper.createObjectNode();
+            payload.put("message", request.getMessage());
+            payload.put("repository", repository);
+            payload.put("token", personalAccessToken);
             if (selectedFiles != null && !selectedFiles.isEmpty()) {
-                context.append("Selected files for analysis:\n");
-                for (String filePath : selectedFiles) {
-                    String fileContent = githubService.getFileContent(personalAccessToken, repositoryUrl, filePath);
-                    if (fileContent != null) {
-                        context.append("\n--- File: ").append(filePath).append(" ---\n");
-                        context.append(fileContent);
-                        context.append("\n");
-                    }
-                }
+                payload.putPOJO("selectedFiles", selectedFiles);
             }
-            
-            // Add repository context to the message
-            String enhancedMessage = "Repository: " + repositoryUrl + "\n\n" + 
-                                   (context.length() > 0 ? "Context:\n" + context.toString() + "\n\n" : "") +
-                                   "User question: " + request.getMessage();
-            
-            // Create enhanced request
-            ChatRequest enhancedRequest = new ChatRequest();
-            enhancedRequest.setMessage(enhancedMessage);
-            enhancedRequest.setModel(request.getModel());
-            
-            ChatResponse response = aiService.chat(enhancedRequest);
+
+            // Call the new smart /execute endpoint via MCPService
+            ObjectNode result = mcpService.execute(payload).get();
+            ChatResponse response = new ChatResponse();
+            response.setMessage(result.has("message") ? result.get("message").asText() : result.toString());
             return ResponseEntity.ok(response);
-            
         } catch (Exception e) {
             ChatResponse errorResponse = new ChatResponse();
             errorResponse.setMessage("Sorry, I encountered an error while processing your request: " + e.getMessage());
