@@ -89,6 +89,11 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <mainClass>techchamps.io.aiagent.AiAgentApplication</mainClass>
+                    <layers>
+                        <enabled>true</enabled>
+                    </layers>
+                    <excludeDevtools>true</excludeDevtools>
+                    <excludeTestDependencies>true</excludeTestDependencies>
                 </configuration>
             </plugin>
         </plugins>
