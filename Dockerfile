@@ -1,4 +1,5 @@
 # Use Eclipse Temurin OpenJDK 17 as the base image
+# Force railway to use new docker file
 FROM eclipse-temurin:17-jdk-alpine as builder
 WORKDIR /app
 COPY . .
