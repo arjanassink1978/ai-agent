@@ -185,4 +185,31 @@ This project is licensed under the MIT License.
 
 ## Support
 
-For issues and questions, please create an issue in the GitHub repository. 
+For issues and questions, please create an issue in the GitHub repository.
+
+## Deployment
+
+### Backend (Spring Boot) on Railway
+1. Push your latest code to GitHub.
+2. Go to [Railway](https://railway.app/) and sign in with your GitHub account.
+3. Create a new project and select "Deploy from GitHub repo".
+4. Select your repository (`ai-agent`).
+5. If using Docker, Railway will auto-detect the Dockerfile. Otherwise, set build command: `./mvnw clean package -DskipTests` and start command: `java -jar target/*.jar`.
+6. Set environment variables (e.g., `OPENAI_API_KEY`, `STABILITY_API_KEY`).
+7. Expose port 8080 (Railway auto-detects this).
+
+### Frontend (Next.js) on Vercel
+1. Go to [Vercel](https://vercel.com/) and sign in with your GitHub account.
+2. Import your repository (`ai-agent`).
+3. Set the project root to `frontend/`.
+4. Set environment variable `NEXT_PUBLIC_API_URL` to your Railway backend URL (e.g., `https://your-backend.up.railway.app`).
+5. Vercel will auto-detect Next.js and deploy.
+
+### Environment Variables
+- `OPENAI_API_KEY` (backend)
+- `STABILITY_API_KEY` (backend)
+- `NEXT_PUBLIC_API_URL` (frontend, Vercel)
+
+### Useful Links
+- [Railway Dashboard](https://railway.app/dashboard)
+- [Vercel Dashboard](https://vercel.com/dashboard) 
