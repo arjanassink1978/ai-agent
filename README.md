@@ -23,7 +23,6 @@ A modern AI-powered chat and image generation application built with Spring Boot
 - **Best Practices**: Get suggestions for code improvements, refactoring, and best practices
 - **Development Support**: Ask questions about your codebase and get intelligent responses
 - **Secure Authentication**: Uses GitHub Personal Access Tokens for secure API access
-- **MCP Server**: Advanced GitHub integration through Model Context Protocol (MCP) server
 
 ## Quick Start
 
@@ -32,21 +31,6 @@ A modern AI-powered chat and image generation application built with Spring Boot
 - Node.js 18 or higher
 - OpenAI API key
 - GitHub Personal Access Token (for Coding Buddy feature)
-
-### MCP Server Setup (Optional)
-The GitHub MCP server provides advanced repository integration capabilities:
-
-1. **Automatic startup**: The MCP server starts automatically when you run `npm run dev` in the frontend directory
-2. **Manual control**: You can also start/stop the MCP server manually:
-   ```bash
-   # Start MCP server only
-   cd frontend && npm run dev:mcp
-   
-   # Stop MCP server
-   cd frontend && npm run stop:mcp
-   ```
-
-The MCP server will be available on port 3001 and provides enhanced repository operations through the MCP protocol.
 
 ### Backend Setup
 1. Clone the repository
@@ -66,11 +50,11 @@ The MCP server will be available on port 3001 and provides enhanced repository o
    ```bash
    npm install
    ```
-3. Start the development server (this will also start the MCP server):
+3. Start the development server:
    ```bash
    npm run dev
    ```
-4. The frontend will start on `http://localhost:3000` and the MCP server on port 3001
+4. The frontend will start on `http://localhost:3000`
 
 ### Using the Coding Buddy Feature
 
@@ -115,19 +99,6 @@ The MCP server will be available on port 3001 and provides enhanced repository o
 - `POST /api/github/repositories` - Get user repositories
 - `POST /api/connect-repository` - Connect to a specific repository
 - `POST /api/coding-chat` - Send coding-related questions with repository context
-
-### MCP Server Endpoints
-- `POST /api/mcp/connect` - Connect to the GitHub MCP server
-- `POST /api/mcp/disconnect` - Disconnect from the MCP server
-- `GET /api/mcp/status` - Get MCP server connection status
-- `POST /api/mcp/tools/list` - Get available MCP tools
-- `POST /api/mcp/resources/list` - Get available MCP resources
-- `POST /api/mcp/repositories` - List repositories via MCP
-- `POST /api/mcp/connect-repository` - Connect to repository via MCP
-- `POST /api/mcp/files` - List files via MCP
-- `POST /api/mcp/read-file` - Read file content via MCP
-- `POST /api/mcp/analyze-code` - Analyze code via MCP
-- `POST /api/mcp/search-code` - Search code via MCP
 
 ## Configuration
 
