@@ -15,7 +15,7 @@ import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/mcp")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:8080"})
+@CrossOrigin(origins = "*")
 public class MCPController {
 
     private static final Logger logger = LoggerFactory.getLogger(MCPController.class);

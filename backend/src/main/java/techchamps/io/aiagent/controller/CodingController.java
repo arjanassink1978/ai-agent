@@ -19,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:8080"})
+@CrossOrigin(origins = "*")
 public class CodingController {
 
     @Autowired
