@@ -100,7 +100,7 @@ export default function ChatInterface() {
           setIsConfigured(false);
           console.log('API key not configured');
         }
-      } catch (testError) {
+      } catch {
         console.log('Test call failed, assuming API key not configured');
         setIsConfigured(false);
       }
