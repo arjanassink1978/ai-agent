@@ -94,8 +94,8 @@ public class MCPService {
         logger.info("Processing request: {}", message);
         
         // Use LLM to understand what the user wants and generate the API call
-        String systemPrompt = String.format(
-            "You are a GitHub API assistant. The user wants to do something with repository: %s. " +
+        String systemPromptTemplate =
+            "You are a GitHub API assistant. The user wants to do something with repository: {{repository}}. " +
             "Respond with ONLY a JSON object in this exact format:\n" +
             "{\n" +
             "  \"method\": \"GET|POST|PUT|DELETE\",\n" +
@@ -104,17 +104,19 @@ public class MCPService {
             "  \"description\": \"What this operation does\"\n" +
             "}\n" +
             "Examples:\n" +
-            "- List issues: {\"method\":\"GET\",\"endpoint\":\"/repos/%s/issues?state=open\",\"description\":\"List open issues\"}\n" +
-            "- Create issue: {\"method\":\"POST\",\"endpoint\":\"/repos/%s/issues\",\"data\":{\"title\":\"Bug fix\",\"body\":\"Description\"},\"description\":\"Create new issue\"}\n" +
-            "- Close issue: {\"method\":\"PATCH\",\"endpoint\":\"/repos/%s/issues/2\",\"data\":{\"state\":\"closed\"},\"description\":\"Close issue number 2\"}\n" +
-            "- Open issue: {\"method\":\"PATCH\",\"endpoint\":\"/repos/%s/issues/2\",\"data\":{\"state\":\"open\"},\"description\":\"Open issue number 2\"}\n" +
-            "- List PRs: {\"method\":\"GET\",\"endpoint\":\"/repos/%s/pulls?state=open\",\"description\":\"List open pull requests\"}\n" +
-            "- List branches: {\"method\":\"GET\",\"endpoint\":\"/repos/%s/branches\",\"description\":\"List all branches\"}\n" +
-            "- Merge PR: {\"method\":\"PUT\",\"endpoint\":\"/repos/%s/pulls/5/merge\",\"data\":{\"merge_method\":\"squash\"},\"description\":\"Merge pull request number 5\"}\n" +
-            "- Close PR: {\"method\":\"PATCH\",\"endpoint\":\"/repos/%s/pulls/5\",\"data\":{\"state\":\"closed\"},\"description\":\"Close pull request number 5\"}\n" +
-            "User request: %s",
-            repository, repository, repository, repository, repository, repository, repository, repository, message
-        );
+            "- List issues: {\"method\":\"GET\",\"endpoint\":\"/repos/{{repository}}/issues?state=open\",\"description\":\"List open issues\"}\n" +
+            "- Create issue: {\"method\":\"POST\",\"endpoint\":\"/repos/{{repository}}/issues\",\"data\":{\"title\":\"Bug fix\",\"body\":\"Description\"},\"description\":\"Create new issue\"}\n" +
+            "- Close issue: {\"method\":\"PATCH\",\"endpoint\":\"/repos/{{repository}}/issues/2\",\"data\":{\"state\":\"closed\"},\"description\":\"Close issue number 2\"}\n" +
+            "- Open issue: {\"method\":\"PATCH\",\"endpoint\":\"/repos/{{repository}}/issues/2\",\"data\":{\"state\":\"open\"},\"description\":\"Open issue number 2\"}\n" +
+            "- List PRs: {\"method\":\"GET\",\"endpoint\":\"/repos/{{repository}}/pulls?state=open\",\"description\":\"List open pull requests\"}\n" +
+            "- List branches: {\"method\":\"GET\",\"endpoint\":\"/repos/{{repository}}/branches\",\"description\":\"List all branches\"}\n" +
+            "- Merge PR: {\"method\":\"PUT\",\"endpoint\":\"/repos/{{repository}}/pulls/5/merge\",\"data\":{\"merge_method\":\"squash\"},\"description\":\"Merge pull request number 5\"}\n" +
+            "- Close PR: {\"method\":\"PATCH\",\"endpoint\":\"/repos/{{repository}}/pulls/5\",\"data\":{\"state\":\"closed\"},\"description\":\"Close pull request number 5\"}\n" +
+            "User request: {{message}}";
+
+        String systemPrompt = systemPromptTemplate
+            .replace("{{repository}}", repository)
+            .replace("{{message}}", message);
         
         try {
             ChatRequest chatRequest = new ChatRequest();
